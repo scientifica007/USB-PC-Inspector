@@ -19,7 +19,7 @@ from .report import make_html
 
 MOUNT_DIR = Path("/run/pc-inspector-media")
 ALLOWED_LABELS = ("PCINSPECTOR_DATA", "Ventoy")
-ALLOWED_FS = ("vfat", "exfat", "ntfs", "ext4")
+ALLOWED_FS = ("vfat", "exfat")
 MAX_REPORT_BYTES = 2_000_000
 SAFE_PATH = re.compile(r"^/dev/[A-Za-z0-9._/-]+$")
 

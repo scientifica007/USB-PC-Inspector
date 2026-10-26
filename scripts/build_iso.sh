@@ -13,6 +13,7 @@ mkdir -p "$DEST/opt/pc-inspector/inspector" "$DEST/usr/local/bin"
 install -m 0644 "$ROOT"/inspector/*.py "$DEST/opt/pc-inspector/inspector/"
 install -m 0755 "$ROOT/bin/pc-inspector-collect" "$DEST/usr/local/bin/pc-inspector-collect"
 install -m 0755 "$ROOT/bin/pc-inspector-save" "$DEST/usr/local/bin/pc-inspector-save"
+chmod 0440 "$DEST/etc/sudoers.d/pc-inspector"
 cd "$LIVE"
 # Remove ONLY generated configuration. Keep tracked package lists and includes.
 rm -rf config/binary config/bootstrap config/chroot config/common config/source

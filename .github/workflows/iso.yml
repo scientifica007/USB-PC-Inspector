@@ -11,13 +11,17 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - name: Install ISO build tools
+      - name: Build in Debian Trixie (current live-build)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y live-build debootstrap xorriso squashfs-tools \
-            syslinux-utils isolinux grub-pc-bin grub-efi-amd64-bin mtools dosfstools
-      - name: Build Debian Live image
-        run: sudo ./scripts/build_iso.sh
+          docker run --rm --privileged \
+            -v "$PWD:/work" -w /work debian:trixie bash -euc '
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                live-build debootstrap xorriso squashfs-tools \
+                syslinux-utils isolinux grub-pc-bin grub-efi-amd64-bin \
+                mtools dosfstools ca-certificates
+              ./scripts/build_iso.sh
+            '
       - name: Generate SHA256 checksum
         run: |
           cd live

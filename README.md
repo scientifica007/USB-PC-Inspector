@@ -1,2 +1,64 @@
-# USB-PC-Inspector
-USB — PC Inspector
+# USB-PC-Inspector — مختبر فحص الحواسيب
+
+**v0.1 development prototype — real USB boot and ISO build NOT YET VERIFIED.**
+
+A portable, Arabic-first, offline diagnostic system designed to boot from USB
+even if the target computer has no internal SSD/HDD or a completely empty disk.
+The project targets 64-bit Intel/AMD machines first.
+
+## Implemented source code
+
+- Read-only BIOS/UEFI, CPU, RAM, battery, internal disks and SMART inventory.
+- Explicit "not available / not examined" states; no claim that a computer is
+  healthy or new solely because no warnings are displayed.
+- Arabic Tkinter GUI; JSON scan result and escaped HTML report.
+- Dedicated USB-only report writer for an exFAT/FAT partition labeled
+  PCINSPECTOR_DATA or Ventoy. **No writing to internal disks.**
+- Debian Trixie Live ISO recipe with BIOS + UEFI bootloader configuration.
+- Unit test and manual ISO build workflows using GitHub Actions.
+
+**Not implemented yet:** full RAM diagnostics, CPU stress testing, BIOS firmware
+integrity verification, keyboard/display guided tests, confirmed hardware boot,
+or any guarantee that a laptop is new.
+
+## Try the scanner from Linux
+
+From the repository root, with Python 3.10+:
+
+    python3 -m inspector.core > report.json
+    python3 -m unittest discover -s tests -v
+    python3 -m inspector.gui
+
+The graphical option requires tkinter. Without privileged helpers, SMART and
+some DMI information can be unavailable. The complete Live image installs
+dedicated allowlisted privileged helpers.
+
+## Building the USB image
+
+On a compatible Debian/Ubuntu Linux build host:
+
+    sudo apt-get update
+    sudo apt-get install -y live-build debootstrap xorriso squashfs-tools \
+      syslinux-utils isolinux grub-pc-bin grub-efi-amd64-bin mtools dosfstools
+    sudo ./scripts/build_iso.sh
+
+Or visit **Actions → Build bootable ISO → Run workflow**. The resulting ISO
+appears as a downloadable workflow artifact *only if the build passes*.
+A successful ISO build still requires testing on physical hardware.
+
+For USB preparation and saved reports, read [docs/USB.md](docs/USB.md).
+For implemented features and planned validation, read
+[docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Safety policy
+
+No partition creation, formatting, firmware flashing or writing to internal
+disks. The default probe only executes observational commands. The external
+USB report partition is checked by physical USB transport, label and filesystem.
+A missing storage device is a valid inspection outcome, not a fatal exception.
+SMART data can be missing, reset or misleading.
+
+Do not change seller-owned firmware settings without permission. Shut down
+cleanly before removing the USB.
+
+License and third-party distribution terms will be settled before release.

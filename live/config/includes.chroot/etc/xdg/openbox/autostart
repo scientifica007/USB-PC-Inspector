@@ -1,0 +1,4 @@
+# Launched as the unprivileged live user, not as root.
+if [ -d /opt/pc-inspector/inspector ]; then
+  ( cd /opt/pc-inspector && /usr/bin/python3 -m inspector.gui ) &
+fi

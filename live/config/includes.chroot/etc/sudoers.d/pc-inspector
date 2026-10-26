@@ -1,0 +1,2 @@
+# Dedicated read-only collector and USB-only report writer.
+user ALL=(root) NOPASSWD: /usr/local/bin/pc-inspector-collect, /usr/local/bin/pc-inspector-save

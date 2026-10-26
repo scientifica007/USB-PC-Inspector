@@ -1,0 +1,20 @@
+name: Python checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python syntax and unit tests
+        run: |
+          python3 -m compileall -q inspector tests
+          python3 -m unittest discover -s tests -v
+      - name: Shell syntax
+        run: |
+          bash -n scripts/build_iso.sh
+          sh -n bin/pc-inspector-collect
+          sh -n bin/pc-inspector-save

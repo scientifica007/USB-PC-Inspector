@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+live/chroot/
+live/binary/
+live/cache/
+live/.build/
+live/*.iso
+live/*.img
+live/*.log
+live/config/binary
+live/config/bootstrap
+live/config/chroot
+live/config/common
+live/config/source
+live/config/includes.chroot/opt/pc-inspector/
+live/config/includes.chroot/usr/local/bin/

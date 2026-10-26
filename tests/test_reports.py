@@ -8,7 +8,7 @@ class ReportTests(unittest.TestCase):
         tree = {"blockdevices": [
             {"type": "disk", "tran": "sata", "path": "/dev/sda",
              "children": [{"type": "part", "path": "/dev/sda1",
-                           "label": "PCINSPECTOR_DATA", "fstype": "vfat"}]},
+                           "label": "PCINSPDATA", "fstype": "vfat"}]},
         ]}
         self.assertIsNone(find_usb_partition(tree))
 

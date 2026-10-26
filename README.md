@@ -35,14 +35,14 @@ dedicated allowlisted privileged helpers.
 
 ## Building the USB image
 
-On a compatible Debian/Ubuntu Linux build host:
+On a Debian Trixie Linux build host (Ubuntu 24.04 ships an older live-build that does not support our UEFI options):
 
     sudo apt-get update
     sudo apt-get install -y live-build debootstrap xorriso squashfs-tools \
       syslinux-utils isolinux grub-pc-bin grub-efi-amd64-bin mtools dosfstools
     sudo ./scripts/build_iso.sh
 
-Or visit **Actions → Build bootable ISO → Run workflow**. The resulting ISO
+On Ubuntu 24.04, prefer the GitHub Actions build. Visit **Actions → Build bootable ISO → Run workflow**. The resulting ISO
 appears as a downloadable workflow artifact *only if the build passes*.
 A successful ISO build still requires testing on physical hardware.
 

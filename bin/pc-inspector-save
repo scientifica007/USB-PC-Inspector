@@ -1,0 +1,5 @@
+#!/bin/sh
+# Narrow, USB-only privileged report writer (stdin JSON, stdout receipt).
+set -eu
+cd /opt/pc-inspector
+exec /usr/bin/python3 -m inspector.usb_store

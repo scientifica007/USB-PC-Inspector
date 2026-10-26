@@ -1,0 +1,5 @@
+#!/bin/sh
+# Installed only on the live USB system; all operations observational.
+set -eu
+cd /opt/pc-inspector
+exec /usr/bin/python3 -m inspector.core

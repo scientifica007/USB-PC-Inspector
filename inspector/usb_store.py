@@ -1,6 +1,6 @@
 """Privileged, narrowly scoped USB report writer.
 
-Only a partition under a kernel-reported USB disk and labeled PCINSPECTOR_DATA
+Only a partition under a kernel-reported USB disk and labeled PCINSPDATA
 or Ventoy is eligible. Internal disks are NEVER candidates. No formatting.
 Input: JSON report on stdin. Output: JSON save receipt on stdout.
 """
@@ -18,7 +18,7 @@ import uuid
 from .report import make_html
 
 MOUNT_DIR = Path("/run/pc-inspector-media")
-ALLOWED_LABELS = ("PCINSPECTOR_DATA", "Ventoy")
+ALLOWED_LABELS = ("PCINSPDATA", "Ventoy")
 ALLOWED_FS = ("vfat", "exfat")
 MAX_REPORT_BYTES = 2_000_000
 SAFE_PATH = re.compile(r"^/dev/[A-Za-z0-9._/-]+$")
@@ -40,7 +40,7 @@ def find_usb_partition(tree: dict) -> dict | None:
                     isinstance(path, str) and SAFE_PATH.fullmatch(path) and
                     ".." not in path):
                 found.append(partition)
-    found.sort(key=lambda d: (0 if d.get("label") == "PCINSPECTOR_DATA" else 1,
+    found.sort(key=lambda d: (0 if d.get("label") == "PCINSPDATA" else 1,
                               str(d.get("path"))))
     return found[0] if found else None
 
@@ -59,7 +59,7 @@ def report_destination() -> Path:
     partition = discover()
     if not partition:
         raise RuntimeError(
-            "No writable USB data partition labeled PCINSPECTOR_DATA or Ventoy was found."
+            "No writable USB data partition labeled PCINSPDATA or Ventoy was found."
         )
     mounted = partition.get("mountpoint")
     if mounted:

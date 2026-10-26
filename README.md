@@ -13,7 +13,7 @@ The project targets 64-bit Intel/AMD machines first.
   healthy or new solely because no warnings are displayed.
 - Arabic Tkinter GUI; JSON scan result and escaped HTML report.
 - Dedicated USB-only report writer for an exFAT/FAT partition labeled
-  PCINSPECTOR_DATA or Ventoy. **No writing to internal disks.**
+  PCINSPDATA or Ventoy. **No writing to internal disks.**
 - Debian Trixie Live ISO recipe with BIOS + UEFI bootloader configuration.
 - Unit test and manual ISO build workflows using GitHub Actions.
 

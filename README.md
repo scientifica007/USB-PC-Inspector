@@ -1,6 +1,6 @@
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
-**v0.1 development prototype — real USB boot and ISO build NOT YET VERIFIED.**
+**v0.1.1-beta.1 development prototype — Legacy BIOS boot on HP 630 and GitHub Actions ISO build verified (27/10/2026); USB report persistence not yet field-validated.**
 
 A portable, Arabic-first, offline diagnostic system designed to boot from USB
 even if the target computer has no internal SSD/HDD or a completely empty disk.
@@ -15,11 +15,13 @@ The project targets 64-bit Intel/AMD machines first.
   healthy or new solely because no warnings are displayed.
 - Arabic Tkinter GUI; JSON scan result and escaped HTML report.
 - Dedicated USB-only report writer for an exFAT/FAT partition labeled
-  PCINSPDATA or Ventoy. **No writing to internal disks.**
+  PCINSPDATA or Ventoy. Validated mount source, independent session directories,
+  JSON/HTML read-back, SHA-256 completion manifest and fsync; **external USB
+  save after boot still needs real hardware validation**. No intended writing to internal disks.
 - Debian Trixie Live ISO recipe with BIOS + UEFI bootloader configuration.
 - Automated Python unit-test workflow on pushes and ISO build workflow (source changes to `inspector/` or `bin/` trigger ISO builds). **Successful CI execution and artifact availability require independent verification.**
 
-**Implementation is not field validation:** progressive events, assessments and SMART parsing have source and unit-test coverage, but an ISO boot on physical hardware, results of current CI runs, and the 10–30 second L1 target have not been verified. Process scan durations do not include boot time.
+**Implementation is not field validation:** HP 630 Legacy BIOS + Ventoy boot, GUI startup, L1 hardware data and JSON generation were verified during a physical field test on 27/10/2026. That build failed to mount the Ventoy data partition read-write for report export. A guarded USB writer fix has automated unit coverage, but save/reboot/reopen on the real medium remains unverified. UEFI, zero-internal-disk boot and the 10–30 second post-boot L1 target also remain unverified. Scan durations do not include boot time. Arabic rendering in Tkinter/Openbox is currently inadequate.
 
 **Not implemented yet:** full RAM diagnostics, CPU stress testing, BIOS firmware
 integrity verification, keyboard/display guided tests, confirmed hardware boot,
@@ -52,6 +54,7 @@ appears as a downloadable workflow artifact *only if the build passes*.
 A successful ISO build still requires testing on physical hardware.
 
 For USB preparation and saved reports, read [docs/USB.md](docs/USB.md).
+See also [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md).
 For implemented features and planned validation, read
 [docs/ROADMAP.md](docs/ROADMAP.md).
 

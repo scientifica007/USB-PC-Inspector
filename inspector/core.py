@@ -178,26 +178,16 @@ def list_internal_disks() -> tuple[list[dict[str, Any]], str | None]:
 def smart_summary(device: str) -> dict[str, Any]:
     if not SAFE_DEVICE.fullmatch(device) or ".." in device:
         return {"status": "not_tested", "reason": "invalid_device"}
-    data, error = parse_json_command(["smartctl", "-a", "-j", device])
-    if data is None:
-        return {"status": "unavailable", "reason": error}
-    smart = data.get("smart_status") or {}
-    on_time = data.get("power_on_time") or {}
-    temp = data.get("temperature") or {}
-    nvme = data.get("nvme_smart_health_information_log") or {}
-    ata = data.get("ata_smart_data") or {}
-    return {
-        "status": "reported" if not error else "partial",
-        "read_warning": error,
-        "overall_passed": smart.get("passed"),
-        "power_on_hours": on_time.get("hours"),
-        "temperature_c": temp.get("current"),
-        "nvme_percentage_used": nvme.get("percentage_used"),
-        "nvme_media_errors": nvme.get("media_errors"),
-        "nvme_critical_warning": nvme.get("critical_warning"),
-        "ata_selftest_status": (ata.get("self_test") or {}).get("status"),
-        "note": "Device-reported data; not proof of age, newness, or absence of faults.",
-    }
+    from .smart import interpret
+    result = run_command(["smartctl", "-a", "-j", device])
+    try:
+        data = json.loads(result.get("stdout") or "")
+    except (ValueError, TypeError):
+        data = None
+    if not isinstance(data, dict):
+        return {"status": "unavailable", "reason": result.get("error") or "unreadable_response",
+                "smartctl_exit_code": result.get("code")}
+    return interpret(data, result.get("code"), result.get("error"))
 
 
 def build_findings(report: dict[str, Any]) -> list[dict[str, str]]:
@@ -213,6 +203,16 @@ def build_findings(report: dict[str, Any]) -> list[dict[str, str]]:
         if smart["status"] in ("unavailable", "not_tested"):
             findings.append({"level": "unknown", "code": "smart_unavailable",
                              "message": "بيانات صحة القرص غير متاحة: " + str(disk["path"])})
+        flags = smart.get("smartctl_exit") or {}
+        if flags.get("critical") is True and smart.get("overall_passed") is not False:
+            findings.append({"level": "warning", "code": "smart_critical_exit",
+                             "message": "أبلغ smartctl عن مؤشر إخفاق حالي أو سمة حرجة في القرص: " + str(disk["path"])})
+        if flags.get("historical") is True:
+            findings.append({"level": "info", "code": "smart_historical_errors",
+                             "message": "توجد سجلات أخطاء أو إخفاقات سابقة؛ يلزم تفسيرها ولا تعني بالضرورة إخفاقًا حاليًا."})
+        if flags.get("read_failure") is True:
+            findings.append({"level": "unknown", "code": "smart_read_incomplete",
+                             "message": "تعذر تنفيذ بعض أوامر SMART أو قراءة بياناتها بالكامل."})
         if smart.get("overall_passed") is False:
             findings.append({"level": "warning", "code": "smart_failed",
                              "message": "القرص أبلغ عن إخفاق في تقييم SMART: " + str(disk["path"])})

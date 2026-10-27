@@ -57,8 +57,10 @@ class USBStoreTests(unittest.TestCase):
             with patch.object(usb_store, "MOUNT_DIR", Path(work)), \
                  patch.object(usb_store, "validated_ventoy_mapper",
                               return_value="/dev/mapper/VentoyPart"), \
-                 patch.object(usb_store.subprocess, "run", side_effect=failures) as call:
+                 patch.object(usb_store.subprocess, "run", side_effect=failures) as call, \
+                 patch.object(usb_store, "verified_mount") as verify:
                 self.assertEqual(usb_store.mount_usb_data(partition), Path(work))
+                verify.assert_called_once_with(partition, Path(work))
             self.assertEqual(call.call_count, 2)
             self.assertEqual(call.call_args_list[0].args[0][-2], "/dev/sdb1")
             self.assertEqual(call.call_args_list[1].args[0][-2],
@@ -92,6 +94,51 @@ class USBStoreTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "mounted read-only"):
                 usb_store.report_destination()
             mount.assert_not_called()
+
+
+    def test_mounted_partition_source_mismatch_is_rejected(self):
+        import json
+        with tempfile.TemporaryDirectory() as work:
+            target = Path(work)
+            candidate = {"path": "/dev/null", "fstype": "exfat", "label": "PCINSPDATA"}
+            result = SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps({"filesystems": [
+                    {"source": "/dev/zero", "target": str(target), "fstype": "exfat"}
+                ]}),
+            )
+            with patch.object(usb_store.subprocess, "run", return_value=result):
+                with self.assertRaisesRegex(RuntimeError, "not the selected USB"):
+                    usb_store.verified_mount(candidate, target)
+
+    def test_mounted_partition_source_correct_is_accepted(self):
+        import json
+        with tempfile.TemporaryDirectory() as work:
+            target = Path(work)
+            candidate = {"path": "/dev/null", "fstype": "exfat", "label": "PCINSPDATA"}
+            result = SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps({"filesystems": [
+                    {"source": "/dev/null", "target": str(target), "fstype": "exfat"}
+                ]}),
+            )
+            with patch.object(usb_store.subprocess, "run", return_value=result):
+                usb_store.verified_mount(candidate, target)
+
+    def test_mounted_partition_wrong_filesystem_is_rejected(self):
+        import json
+        with tempfile.TemporaryDirectory() as work:
+            target = Path(work)
+            candidate = {"path": "/dev/null", "fstype": "exfat", "label": "PCINSPDATA"}
+            result = SimpleNamespace(
+                returncode=0,
+                stdout=json.dumps({"filesystems": [
+                    {"source": "/dev/null", "target": str(target), "fstype": "ext4"}
+                ]}),
+            )
+            with patch.object(usb_store.subprocess, "run", return_value=result):
+                with self.assertRaisesRegex(RuntimeError, "filesystem type"):
+                    usb_store.verified_mount(candidate, target)
 
 
 if __name__ == "__main__":

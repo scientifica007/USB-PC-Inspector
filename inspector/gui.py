@@ -51,7 +51,7 @@ class InspectorApp:
         self.save_button.pack(side="right", padx=5)
         ttk.Button(actions, text="نسخ JSON", command=self.copy_json).pack(
             side="right", padx=5)
-        self.status = tk.StringVar(value="جاهز. ابدأ الفحص للحصول على تقرير.")
+        self.status = tk.StringVar(value="سيبدأ الفحص العام تلقائيًا...")
         ttk.Label(actions, textvariable=self.status, foreground="#4e6173"
                   ).pack(side="left", padx=8)
 
@@ -70,6 +70,7 @@ class InspectorApp:
                    "أو Ventoy. عدم وجود قسم مناسب يعني أن الحفظ غير متاح.\n\n"
                    "القرص الداخلي لا يُركّب ولا يُهيّأ ولا تُكتب عليه ملفات.")
         root.after(150, self.consume)
+        root.after(350, self.scan)
 
     def make_text_tab(self, label: str) -> tk.Text:
         parent = ttk.Frame(self.notebook)
@@ -118,7 +119,7 @@ class InspectorApp:
     def scan(self) -> None:
         self.scan_button.configure(state="disabled")
         self.save_button.configure(state="disabled")
-        self.status.set("يجري جرد المكونات...")
+        self.status.set("يجري الفحص العام. ستظهر النتائج عند اكتمال الجرد...")
         self.report = None
         threading.Thread(target=self._scan_worker, daemon=True).start()
 

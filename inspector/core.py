@@ -12,7 +12,9 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-from typing import Any
+import sys
+import time
+from typing import Any, Callable
 
 from . import __version__
 
@@ -233,36 +235,88 @@ def build_findings(report: dict[str, Any]) -> list[dict[str, str]]:
     return findings
 
 
-def collect() -> dict[str, Any]:
-    disks, disk_error = list_internal_disks()
-    for disk in disks:
-        disk["smart"] = smart_summary(disk["path"])
-    report = {
+def collect(progress: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+    """Collect once, optionally emitting read-only snapshots after each stage.
+
+    Intermediate snapshots are inventories only, not purchase assessments.
+    The final complete event contains the sole authoritative report.
+    """
+    started = time.monotonic()
+    stage_seconds: dict[str, float] = {}
+    report: dict[str, Any] = {
         "schema_version": 1,
         "tool_version": __version__,
         "created_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
         "mode": "observational_only",
         "scope": "internal disks only; USB boot media excluded",
-        "bios": bios_inventory(),
-        "cpu": cpu_inventory(),
-        "memory": memory_inventory(),
-        "battery": battery_inventory(),
-        "storage": disks,
-        "disk_probe_error": disk_error,
-        "tool_availability": {
-            tool: shutil.which(tool) is not None
-            for tool in ("lsblk", "smartctl", "dmidecode")
-        },
-        "disclaimer": "Only a preliminary inventory. No stress test, complete RAM test, malware check, or BIOS integrity proof was performed.",
     }
+
+    def publish(stage: str, message: str) -> None:
+        stage_seconds[stage] = round(time.monotonic() - started, 3)
+        if progress is None:
+            return
+        storage = [
+            {"path": d["path"], "model": d.get("model"),
+             "size_bytes": d.get("size_bytes"), "smart": {
+                 key: d.get("smart", {}).get(key)
+                 for key in ("status", "overall_passed", "power_on_hours")
+             } if "smart" in d else None}
+            for d in report.get("storage", [])
+        ]
+        snapshot = {
+            "bios": report.get("bios"),
+            "cpu": report.get("cpu"),
+            "memory": report.get("memory"),
+            "battery": report.get("battery"),
+            "storage": storage,
+            "disk_probe_error": report.get("disk_probe_error"),
+        }
+        progress({"type": "progress", "stage": stage, "message": message,
+                  "elapsed_seconds": stage_seconds[stage], "snapshot": snapshot})
+
+    report["bios"] = bios_inventory()
+    report["cpu"] = cpu_inventory()
+    publish("identity", "تم جرد هوية الجهاز والمعالج؛ بقية الفحوص قيد التنفيذ.")
+    report["memory"] = memory_inventory()
+    publish("memory", "اكتمل جرد الذاكرة؛ يجري استكمال المكونات.")
+    report["battery"] = battery_inventory()
+    publish("battery", "اكتملت قراءة معلومات البطارية المتاحة.")
+    disks, disk_error = list_internal_disks()
+    report["storage"] = disks
+    report["disk_probe_error"] = disk_error
+    publish("storage", "اكتمل حصر الأقراص؛ فحص SMART قيد التنفيذ.")
+    for disk in disks:
+        disk["smart"] = smart_summary(disk["path"])
+        publish("smart", "وصلت نتيجة SMART للقرص " + str(disk["path"]))
+    report["tool_availability"] = {
+        tool: shutil.which(tool) is not None
+        for tool in ("lsblk", "smartctl", "dmidecode")
+    }
+    report["disclaimer"] = (
+        "Only a preliminary inventory. No stress test, complete RAM test, "
+        "malware check, or BIOS integrity proof was performed."
+    )
     report["findings"] = build_findings(report)
     from .assessment import assess
     report["purchase_assessment"] = assess(report)
+    report["scan_timing"] = {
+        "total_seconds": round(time.monotonic() - started, 3),
+        "stage_seconds": stage_seconds,
+        "measurement": "process_runtime_not_time_since_USB_boot",
+    }
     return report
 
 
 def main() -> None:
-    print(json.dumps(collect(), ensure_ascii=False, indent=2))
+    if sys.argv[1:] == ["--events"]:
+        def output(event: dict[str, Any]) -> None:
+            print(json.dumps(event, ensure_ascii=False), flush=True)
+        report = collect(progress=output)
+        output({"type": "complete", "report": report})
+    elif not sys.argv[1:]:
+        print(json.dumps(collect(), ensure_ascii=False, indent=2))
+    else:
+        raise SystemExit("Usage: python3 -m inspector.core [--events]")
 
 
 if __name__ == "__main__":

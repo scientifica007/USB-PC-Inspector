@@ -31,6 +31,27 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
         verdict, reason = "inspect_before_payment", "ظهرت تحذيرات تستدعي فحصًا إضافيًا قبل الدفع."
     elif unknown or not storage:
         verdict, reason = "undetermined", "بيانات التخزين غير كافية لاتخاذ قرار شراء."
+    elif (
+        isinstance(report.get("bios"), dict)
+        and bool(report["bios"].get("model"))
+        and isinstance(report.get("cpu"), dict)
+        and bool(report["cpu"].get("model"))
+        and isinstance(report.get("memory"), dict)
+        and type(report["memory"].get("total_bytes")) is int
+        and report["memory"]["total_bytes"] > 0
+        and all(
+            isinstance(d, dict)
+            and isinstance(d.get("smart"), dict)
+            and d["smart"].get("status") == "reported"
+            and d["smart"].get("overall_passed") is True
+            for d in storage
+        )
+        and "smart_historical_errors" not in codes
+    ):
+        verdict, reason = (
+            "candidate",
+            "مرشح مبدئيًا وفق بيانات الجرد ومؤشر SMART المتاح؛ ما زالت اختبارات الشاشة والمنافذ والاستقرار ضرورية قبل الشراء.",
+        )
     else:
         verdict, reason = "inspect_before_payment", "لا توجد أدلة كافية لإثبات سلامة الجهاز؛ يلزم فحص إضافي."
     return {

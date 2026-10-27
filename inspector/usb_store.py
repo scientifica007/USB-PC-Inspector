@@ -72,7 +72,7 @@ def validated_ventoy_mapper(
         return None
     try:
         device = mapper.resolve(strict=True)
-        if not re.fullmatch(r"dm-\\d+", device.name):
+        if not re.fullmatch(r"dm-\d+", device.name):
             return None
         if not stat.S_ISBLK(device.stat().st_mode):
             return None

@@ -50,6 +50,19 @@ For USB preparation and saved reports, read [docs/USB.md](docs/USB.md).
 For implemented features and planned validation, read
 [docs/ROADMAP.md](docs/ROADMAP.md).
 
+## Approved product direction (planned; not yet implemented)
+
+The default experience is **general, preparation-free, offline-first, rapid inspection**
+followed by optional progressively deeper tests. An optional purchase profile can
+compare the actual hardware with seller claims, intended workloads, budget and
+warranty. Later phases plan secure wireless pairing with a phone, a dedicated
+Android companion app, an evidence-grounded optional AI agent, and explicitly
+authorized remote desktop control. These features are **not implemented in v0.1**.
+
+- [Approved architecture and product requirements](docs/ARCHITECTURE.md)
+- [Milestone roadmap and acceptance criteria](docs/ROADMAP.md)
+
+
 ## Safety policy
 
 No partition creation, formatting, firmware flashing or writing to internal

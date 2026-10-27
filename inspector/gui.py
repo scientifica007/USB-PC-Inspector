@@ -214,7 +214,7 @@ class InspectorApp:
                              " | SMART: " + str(smart.get("status") or "قيد الفحص"))
         lines.extend(["", str(event.get("message") or ""),
                       "هذه المعلومات مؤقتة، ولا تثبت سلامة الحاسوب."])
-        return "\\n".join(lines)
+        return "\n".join(lines)
 
     @staticmethod
     def format_report(data: dict) -> str:
@@ -263,6 +263,10 @@ class InspectorApp:
         for finding in data.get("findings", []):
             lines.append("• [" + val(finding.get("level")) + "] " +
                          val(finding.get("message")))
+        timing = data.get("scan_timing") or {}
+        if isinstance(timing.get("total_seconds"), (int, float)):
+            lines.append("زمن الفحص: " + str(timing["total_seconds"]) +
+                         " ثانية (لا يشمل زمن الإقلاع من USB).")
         lines.append("\nلا تعني النتائج الخالية من التحذيرات أن الجهاز سليم بالكامل.")
         return "\n".join(lines)
 

@@ -50,5 +50,21 @@ class GuiProtocolTests(unittest.TestCase):
         self.assertTrue(event[2])
 
 
+    def test_failed_usb_save_keeps_report_in_memory(self):
+        app = gui.InspectorApp.__new__(gui.InspectorApp)
+        app.events = queue.Queue()
+        report = {"schema_version": 1, "bios": {}, "storage": [], "findings": []}
+        app.report = report
+        fake = Mock()
+        fake.stdout = '{"saved": false, "error": "rw_failed"}'
+        with patch.object(gui.os.path, "isfile", return_value=True), \
+             patch.object(gui.subprocess, "run", return_value=fake):
+            app._save_worker()
+        self.assertIs(app.report, report)
+        event = app.events.get_nowait()
+        self.assertEqual(event[0], "error")
+        self.assertIn("rw_failed", event[1])
+
+
 if __name__ == "__main__":
     unittest.main()

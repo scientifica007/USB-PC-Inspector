@@ -256,6 +256,8 @@ def collect() -> dict[str, Any]:
         "disclaimer": "Only a preliminary inventory. No stress test, complete RAM test, malware check, or BIOS integrity proof was performed.",
     }
     report["findings"] = build_findings(report)
+    from .assessment import assess
+    report["purchase_assessment"] = assess(report)
     return report
 
 

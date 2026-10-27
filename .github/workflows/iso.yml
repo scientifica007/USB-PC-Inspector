@@ -6,6 +6,8 @@ on:
       - '.github/workflows/iso.yml'
       - 'live/**'
       - 'scripts/build_iso.sh'
+      - 'inspector/**'
+      - 'bin/**'
   workflow_dispatch:
 jobs:
   build:

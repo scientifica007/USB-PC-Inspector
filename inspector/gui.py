@@ -163,6 +163,14 @@ class InspectorApp:
             lines.append("البطارية " + val(batt.get("name")) +
                          " — السعة التقديرية: " +
                          val(batt.get("estimated_health_percent")) + "%")
+        assessment = data.get("purchase_assessment") or {}
+        labels = {"do_not_buy": "لا يُنصح بالشراء",
+                  "inspect_before_payment": "افحص قبل الدفع",
+                  "undetermined": "غير محسوم", "candidate": "مرشح مبدئيًا"}
+        if assessment:
+            lines.append("\nقرار الشراء الأولي: " +
+                         labels.get(assessment.get("verdict"), "غير محسوم"))
+            lines.append(str(assessment.get("reason") or ""))
         lines.append("\nالملاحظات التشخيصية:")
         for finding in data.get("findings", []):
             lines.append("• [" + val(finding.get("level")) + "] " +

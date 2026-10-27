@@ -1,0 +1,15 @@
+#!/bin/sh
+# Ensure the Live account exists before systemd/getty and LightDM start.
+set -eu
+if ! getent group autologin >/dev/null; then
+    groupadd --system autologin
+fi
+if ! id user >/dev/null 2>&1; then
+    useradd --create-home --shell /bin/bash --groups autologin user
+else
+    usermod --append --groups autologin user
+fi
+printf 'user:live\n' | chpasswd
+passwd -u user >/dev/null 2>&1 || true
+id user
+getent shadow user | cut -d: -f1

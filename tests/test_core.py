@@ -27,15 +27,17 @@ class CoreTests(unittest.TestCase):
         sample = {"smart_status": {"passed": False},
                   "power_on_time": {"hours": 4826},
                   "nvme_smart_health_information_log": {"percentage_used": 82}}
-        with patch.object(core, "parse_json_command",
-                          return_value=(sample, "nonzero_exit")):
+        import json
+        with patch.object(core, "run_command",
+                          return_value={"ok": False, "code": 8,
+                                        "stdout": json.dumps(sample), "error": ""}):
             result = core.smart_summary("/dev/nvme0n1")
         self.assertEqual(result["status"], "partial")
         self.assertFalse(result["overall_passed"])
         self.assertEqual(result["power_on_hours"], 4826)
 
     def test_reject_unusual_device_path(self):
-        with patch.object(core, "parse_json_command") as call:
+        with patch.object(core, "run_command") as call:
             result = core.smart_summary("/dev/../../tmp/test")
         self.assertEqual(result["status"], "not_tested")
         call.assert_not_called()

@@ -150,8 +150,11 @@ class InspectorApp:
             try:
                 self._stream_collect(["sudo", "-n", COLLECT_HELPER, "--events"], False)
                 return
-            except (OSError, RuntimeError):
-                # An unreadable privileged helper must not block the offline scan.
+            except (OSError, RuntimeError) as exc:
+                # A timed-out scan should stop, not silently run for 90 more seconds.
+                if "مهلة الفحص" in str(exc):
+                    raise
+                # Missing privilege should not block read-only inventory.
                 self.events.put(("progress_reset",))
         self._stream_collect(unprivileged, True)
 

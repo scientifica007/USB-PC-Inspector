@@ -29,5 +29,23 @@ class AssessmentTests(unittest.TestCase):
         self.assertFalse(result["price_assessed"])
 
 
+    def test_complete_inventory_can_be_provisional_candidate(self):
+        report = self.base({"status": "reported", "overall_passed": True})
+        report["bios"] = {"model": "Example"}
+        report["cpu"] = {"model": "Example CPU"}
+        report["memory"] = {"total_bytes": 8 * 1024**3}
+        verdict = assess(report)
+        self.assertEqual(verdict["verdict"], "candidate")
+        self.assertFalse(verdict["price_assessed"])
+        self.assertIn("مبدئيًا", verdict["reason"])
+
+    def test_candidate_requires_clean_current_smart_result(self):
+        report = self.base({"status": "partial", "overall_passed": True})
+        report["bios"] = {"model": "Example"}
+        report["cpu"] = {"model": "Example CPU"}
+        report["memory"] = {"total_bytes": 8 * 1024**3}
+        self.assertNotEqual(assess(report)["verdict"], "candidate")
+
+
 if __name__ == "__main__":
     unittest.main()

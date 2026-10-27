@@ -9,13 +9,17 @@ The project targets 64-bit Intel/AMD machines first.
 ## Implemented source code
 
 - Read-only BIOS/UEFI, CPU, RAM, battery, internal disks and SMART inventory.
+- Staged JSONL events (`--events`): first CPU/BIOS, then RAM, battery, disks and SMART, with in-process elapsed timings. The GUI auto-starts the scan and previews facts without premature purchase decisions.
+- Preliminary evidence-based L1 purchase guidance (do not buy / inspect before payment / undetermined); no health score or price valuation.
 - Explicit "not available / not examined" states; no claim that a computer is
   healthy or new solely because no warnings are displayed.
 - Arabic Tkinter GUI; JSON scan result and escaped HTML report.
 - Dedicated USB-only report writer for an exFAT/FAT partition labeled
   PCINSPDATA or Ventoy. **No writing to internal disks.**
 - Debian Trixie Live ISO recipe with BIOS + UEFI bootloader configuration.
-- Unit test and manual ISO build workflows using GitHub Actions.
+- Automated Python unit-test workflow on pushes and ISO build workflow (source changes to `inspector/` or `bin/` trigger ISO builds). **Successful CI execution and artifact availability require independent verification.**
+
+**Implementation is not field validation:** progressive events, assessments and SMART parsing have source and unit-test coverage, but an ISO boot on physical hardware, results of current CI runs, and the 10–30 second L1 target have not been verified. Process scan durations do not include boot time.
 
 **Not implemented yet:** full RAM diagnostics, CPU stress testing, BIOS firmware
 integrity verification, keyboard/display guided tests, confirmed hardware boot,
@@ -26,6 +30,7 @@ or any guarantee that a laptop is new.
 From the repository root, with Python 3.10+:
 
     python3 -m inspector.core > report.json
+    python3 -m inspector.core --events > inspection-events.jsonl
     python3 -m unittest discover -s tests -v
     python3 -m inspector.gui
 

@@ -16,14 +16,14 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
     storage = report.get("storage")
     if not isinstance(storage, list):
         storage = []
-    unknown = bool(report.get("disk_probe_error")) or "disk_scan_unavailable" in codes
+    unknown = bool(report.get("disk_probe_error")) or "disk_scan_unavailable" in codes or "smart_read_incomplete" in codes
     unknown = unknown or any(
         not isinstance(d, dict)
         or not isinstance(d.get("smart"), dict)
         or d["smart"].get("status") in ("unavailable", "not_tested", None)
         for d in storage
     )
-    critical = "smart_failed" in codes
+    critical = "smart_failed" in codes or "smart_critical_exit" in codes
     warnings = [f for f in findings if isinstance(f, dict) and f.get("level") == "warning"]
     if critical:
         verdict, reason = "do_not_buy", "أبلغ قرص داخلي عن إخفاق SMART؛ لا يُنصح بالشراء قبل التحقق الفني."

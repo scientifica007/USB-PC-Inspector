@@ -1,6 +1,7 @@
 """Arabic offline desktop UI; scans in a background thread."""
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 import queue
@@ -95,26 +96,64 @@ class InspectorApp:
         widget.insert("1.0", content, "rtl")
         widget.configure(state="disabled")
 
+    def _stream_collect(self, command: list[str], reduced: bool) -> None:
+        """Consume newline-delimited progress events from a bounded collector."""
+        proc = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, bufsize=1,
+        )
+        expired = threading.Event()
+
+        def terminate_on_timeout() -> None:
+            if proc.poll() is None:
+                expired.set()
+                proc.kill()
+
+        watchdog = threading.Timer(90, terminate_on_timeout)
+        watchdog.daemon = True
+        watchdog.start()
+        completed = None
+        try:
+            assert proc.stdout is not None
+            for line in proc.stdout:
+                try:
+                    event = json.loads(line)
+                except ValueError as exc:
+                    raise RuntimeError("رد غير صالح من محرك الفحص.") from exc
+                if not isinstance(event, dict):
+                    raise RuntimeError("صيغة حدث الفحص غير معروفة.")
+                if event.get("type") == "progress":
+                    self.events.put(("progress", event))
+                elif event.get("type") == "complete":
+                    completed = event.get("report")
+                else:
+                    raise RuntimeError("نوع حدث الفحص غير معروف.")
+            assert proc.stderr is not None
+            error = proc.stderr.read()[-750:]
+            returncode = proc.wait()
+        finally:
+            watchdog.cancel()
+            if proc.poll() is None:
+                proc.kill()
+            proc.wait()
+        if expired.is_set():
+            raise RuntimeError("انتهت مهلة الفحص (90 ثانية).")
+        if returncode != 0 or not isinstance(completed, dict):
+            raise RuntimeError(error or "لم يُنتج الفحص تقريرًا نهائيًا صالحًا.")
+        self.events.put(("scan", completed, reduced))
+
     def run_collect(self) -> None:
-        command = [sys.executable, "-m", "inspector.core"]
+        unprivileged = [sys.executable, "-m", "inspector.core", "--events"]
         privileged = (os.path.exists(COLLECT_HELPER) and
                       shutil.which("sudo") is not None)
         if privileged:
-            command = ["sudo", "-n", COLLECT_HELPER]
-        result = subprocess.run(command, text=True, capture_output=True,
-                                timeout=90, check=False)
-        if privileged and result.returncode != 0:
-            # Fail open for observational sysfs/lsblk only; flag reduced permissions.
-            result = subprocess.run([sys.executable, "-m", "inspector.core"],
-                                    text=True, capture_output=True,
-                                    timeout=90, check=False)
-            reduced = True
-        else:
-            reduced = not privileged
-        if result.returncode != 0:
-            raise RuntimeError(result.stderr[-750:] or "تعذر تنفيذ الفحص.")
-        data = json.loads(result.stdout)
-        self.events.put(("scan", data, reduced))
+            try:
+                self._stream_collect(["sudo", "-n", COLLECT_HELPER, "--events"], False)
+                return
+            except (OSError, RuntimeError):
+                # An unreadable privileged helper must not block the offline scan.
+                self.events.put(("progress_reset",))
+        self._stream_collect(unprivileged, True)
 
     def scan(self) -> None:
         self.scan_button.configure(state="disabled")
@@ -130,6 +169,54 @@ class InspectorApp:
             self.events.put(("error", "تعذر إكمال الفحص: " + str(exc)))
 
     @staticmethod
+    def display_date(timestamp: object) -> str:
+        if not isinstance(timestamp, str):
+            return "غير متاح"
+        try:
+            return dt.datetime.fromisoformat(timestamp.replace("Z", "+00:00")).strftime(
+                "%d/%m/%Y %H:%M UTC")
+        except ValueError:
+            return "غير متاح"
+
+    @staticmethod
+    def format_progress(event: dict) -> str:
+        """Preview measured facts only; no premature buy/health verdict."""
+        snap = event.get("snapshot") or {}
+        bios = snap.get("bios") or {}
+        cpu = snap.get("cpu") or {}
+        memory = snap.get("memory") or {}
+        lines = [
+            "جرد أولي جارٍ — القرار النهائي لم يصدر بعد",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "الزمن المنقضي منذ بدء الفحص: " + str(event.get("elapsed_seconds")) + " ثانية",
+            "المرحلة: " + str(event.get("stage")),
+            "",
+        ]
+        if bios:
+            lines.extend(["الشركة: " + str(bios.get("manufacturer") or "غير متاح"),
+                          "الطراز: " + str(bios.get("model") or "غير متاح")])
+        if cpu:
+            lines.append("المعالج: " + str(cpu.get("model") or "غير متاح"))
+        if memory:
+            total = memory.get("total_bytes")
+            lines.append("الذاكرة RAM: " + (
+                f"{total / (1024 ** 3):.2f} GiB" if isinstance(total, int)
+                else "غير متاحة"))
+        if snap.get("battery") is not None:
+            lines.append("عدد البطاريات المكتشفة: " + str(len(snap["battery"])))
+        if snap.get("storage") is not None:
+            disks = snap["storage"]
+            lines.append("الأقراص الداخلية المكتشفة: " + str(len(disks)))
+            for disk in disks:
+                smart = disk.get("smart") or {}
+                lines.append("• " + str(disk.get("path")) + " — " +
+                             str(disk.get("model") or "طراز غير متاح") +
+                             " | SMART: " + str(smart.get("status") or "قيد الفحص"))
+        lines.extend(["", str(event.get("message") or ""),
+                      "هذه المعلومات مؤقتة، ولا تثبت سلامة الحاسوب."])
+        return "\\n".join(lines)
+
+    @staticmethod
     def format_report(data: dict) -> str:
         bios = data.get("bios", {})
         cpu = data.get("cpu", {})
@@ -137,7 +224,7 @@ class InspectorApp:
         def val(value: object) -> str:
             return "غير متاح" if value is None else str(value)
         lines = [
-            "تقرير أولي — " + val(data.get("created_utc")),
+            "تقرير أولي — " + InspectorApp.display_date(data.get("created_utc")),
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
             "الشركة: " + val(bios.get("manufacturer")),
             "الطراز: " + val(bios.get("model")),
@@ -214,7 +301,13 @@ class InspectorApp:
         try:
             while True:
                 event = self.events.get_nowait()
-                if event[0] == "scan":
+                if event[0] == "progress":
+                    self.write(self.summary, self.format_progress(event[1]))
+                    self.status.set(event[1].get("message") or "يجري الفحص...")
+                elif event[0] == "progress_reset":
+                    self.write(self.summary, "تعذر الفحص بالصلاحيات الموسعة؛ تجري المحاولة بصلاحيات محدودة.")
+                    self.status.set("يجري الفحص بصلاحيات محدودة...")
+                elif event[0] == "scan":
                     data, reduced = event[1], event[2]
                     self.report = data
                     self.write(self.summary, self.format_report(data))

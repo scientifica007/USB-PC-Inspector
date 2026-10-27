@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import subprocess
 import sys
 import uuid
@@ -55,6 +56,61 @@ def discover() -> dict | None:
     return find_usb_partition(json.loads(result.stdout))
 
 
+def validated_ventoy_mapper(
+    physical_partition: str,
+    mapper: Path = Path("/dev/mapper/VentoyPart"),
+    sys_block: Path = Path("/sys/class/block"),
+) -> str | None:
+    """Accept Ventoy's alias only if its sole underlying slave is our USB part.
+
+    A mapper's name alone is NEVER proof it belongs to a removable USB.
+    The physical partition must already have passed the lsblk USB+label check.
+    """
+    if not isinstance(physical_partition, str) or not SAFE_PATH.fullmatch(
+        physical_partition
+    ) or ".." in physical_partition:
+        return None
+    try:
+        device = mapper.resolve(strict=True)
+        if not re.fullmatch(r"dm-\\d+", device.name):
+            return None
+        if not stat.S_ISBLK(device.stat().st_mode):
+            return None
+        slaves = {p.name for p in (sys_block / device.name / "slaves").iterdir()}
+        if slaves != {Path(physical_partition).name}:
+            return None
+    except (OSError, ValueError):
+        return None
+    return str(mapper)
+
+
+def mount_usb_data(partition: dict) -> Path:
+    """Mount only a validated USB data partition (or verified Ventoy alias)."""
+    MOUNT_DIR.mkdir(parents=True, exist_ok=True)
+    devices = [partition["path"]]
+    if partition.get("label") == "Ventoy":
+        alias = validated_ventoy_mapper(partition["path"])
+        if alias:
+            devices.append(alias)
+    errors = []
+    for source in devices:
+        result = subprocess.run(
+            ["mount", "-o", "rw,nosuid,nodev,noexec", "--", source, str(MOUNT_DIR)],
+            capture_output=True, text=True, timeout=15, check=False,
+        )
+        if result.returncode == 0:
+            return MOUNT_DIR
+        # Keep useful diagnostic detail, but limit output from external tools.
+        detail = (result.stderr or result.stdout or "unknown mount error").strip()
+        errors.append(source + ": " + detail[:280])
+    raise RuntimeError(
+        "Could not mount the USB data partition read-write. "
+        + "; ".join(errors)
+        + ". Ventoy may keep its ISO partition busy; "
+        "an independent PCINSPDATA USB drive is a safe alternative."
+    )
+
+
 def report_destination() -> Path:
     partition = discover()
     if not partition:
@@ -66,16 +122,12 @@ def report_destination() -> Path:
         target = Path(mounted)
         if not target.is_dir():
             raise RuntimeError("Reported USB mount point is not a directory.")
+        if os.statvfs(target).f_flag & os.ST_RDONLY:
+            raise RuntimeError(
+                "USB data partition is mounted read-only; cannot save report."
+            )
     else:
-        MOUNT_DIR.mkdir(parents=True, exist_ok=True)
-        result = subprocess.run(
-            ["mount", "-o", "rw,nosuid,nodev,noexec", "--",
-             partition["path"], str(MOUNT_DIR)],
-            capture_output=True, text=True, timeout=15, check=False,
-        )
-        if result.returncode != 0:
-            raise RuntimeError("Could not mount the USB data partition in read-write mode.")
-        target = MOUNT_DIR
+        target = mount_usb_data(partition)
     if not os.access(target, os.W_OK):
         raise RuntimeError("USB data partition is not writable.")
     reports = target / "PC-Inspector-Reports"

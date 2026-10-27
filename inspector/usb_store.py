@@ -17,6 +17,7 @@ import sys
 import uuid
 
 from .report import make_html
+from .report_writer import store_verified_bundle
 
 MOUNT_DIR = Path("/run/pc-inspector-media")
 ALLOWED_LABELS = ("PCINSPDATA", "Ventoy")
@@ -84,9 +85,53 @@ def validated_ventoy_mapper(
     return str(mapper)
 
 
+def verified_mount(partition: dict, target: Path) -> None:
+    """Verify the mounted filesystem really belongs to the selected USB part."""
+    if target.is_symlink() or not target.is_dir():
+        raise RuntimeError("Unsafe or nonexistent USB mount point.")
+    result = subprocess.run(
+        ["findmnt", "-J", "-M", str(target), "-o", "SOURCE,TARGET,FSTYPE"],
+        capture_output=True, text=True, timeout=10, check=False,
+    )
+    try:
+        data = json.loads(result.stdout) if result.returncode == 0 else {}
+        entries = data.get("filesystems", [])
+    except (ValueError, TypeError):
+        entries = []
+    if len(entries) != 1 or not isinstance(entries[0], dict):
+        raise RuntimeError("Cannot verify USB mount source.")
+    entry = entries[0]
+    source = entry.get("source")
+    if not isinstance(source, str) or not source.startswith("/dev/"):
+        raise RuntimeError("USB mount source is not a block device.")
+    if entry.get("target") != str(target):
+        raise RuntimeError("USB mount target does not match.")
+    fstype = str(entry.get("fstype") or "").lower()
+    if fstype != str(partition.get("fstype") or "").lower():
+        raise RuntimeError("USB filesystem type does not match detected partition.")
+    try:
+        canonical = Path(source).resolve(strict=True)
+        expected = Path(partition["path"]).resolve(strict=True)
+    except (OSError, ValueError) as exc:
+        raise RuntimeError("Cannot verify USB block device identity.") from exc
+    if canonical != expected:
+        alias = (
+            validated_ventoy_mapper(partition["path"])
+            if partition.get("label") == "Ventoy" else None
+        )
+        if not alias or canonical != Path(alias).resolve(strict=True):
+            raise RuntimeError("USB mount source is not the selected USB device.")
+    if os.statvfs(target).f_flag & os.ST_RDONLY:
+        raise RuntimeError("USB data partition is mounted read-only.")
+
+
 def mount_usb_data(partition: dict) -> Path:
-    """Mount only a validated USB data partition (or verified Ventoy alias)."""
+    """Mount only selected USB or a verified mapper; never mount internal disks."""
+    if MOUNT_DIR.is_symlink():
+        raise RuntimeError("Unsafe USB mount directory.")
     MOUNT_DIR.mkdir(parents=True, exist_ok=True)
+    if MOUNT_DIR.is_symlink() or os.path.ismount(MOUNT_DIR):
+        raise RuntimeError("USB mount directory is unexpectedly occupied.")
     devices = [partition["path"]]
     if partition.get("label") == "Ventoy":
         alias = validated_ventoy_mapper(partition["path"])
@@ -99,40 +144,39 @@ def mount_usb_data(partition: dict) -> Path:
             capture_output=True, text=True, timeout=15, check=False,
         )
         if result.returncode == 0:
+            verified_mount(partition, MOUNT_DIR)
             return MOUNT_DIR
-        # Keep useful diagnostic detail, but limit output from external tools.
         detail = (result.stderr or result.stdout or "unknown mount error").strip()
         errors.append(source + ": " + detail[:280])
     raise RuntimeError(
         "Could not mount the USB data partition read-write. "
         + "; ".join(errors)
-        + ". Ventoy may keep its ISO partition busy; "
-        "an independent PCINSPDATA USB drive is a safe alternative."
+        + ". Ventoy can keep the ISO partition busy; "
+        "use an independent PCINSPDATA USB drive when necessary."
     )
 
 
 def report_destination() -> Path:
+    """Locate and authenticate a writable external USB filesystem root."""
     partition = discover()
     if not partition:
         raise RuntimeError(
-            "No writable USB data partition labeled PCINSPDATA or Ventoy was found."
+            "No USB data partition labeled PCINSPDATA or Ventoy was found."
         )
     mounted = partition.get("mountpoint")
     if mounted:
         target = Path(mounted)
-        if not target.is_dir():
-            raise RuntimeError("Reported USB mount point is not a directory.")
+        # Check read-only first, including before opening any report folder.
+        if target.is_symlink() or not target.is_dir():
+            raise RuntimeError("Reported USB mount point is unsafe.")
         if os.statvfs(target).f_flag & os.ST_RDONLY:
-            raise RuntimeError(
-                "USB data partition is mounted read-only; cannot save report."
-            )
+            raise RuntimeError("USB data partition is mounted read-only.")
+        verified_mount(partition, target)
     else:
         target = mount_usb_data(partition)
     if not os.access(target, os.W_OK):
         raise RuntimeError("USB data partition is not writable.")
-    reports = target / "PC-Inspector-Reports"
-    reports.mkdir(mode=0o755, exist_ok=True)
-    return reports
+    return target
 
 
 def validate(report: object) -> dict:
@@ -151,22 +195,14 @@ def validate(report: object) -> dict:
 
 def save(report: dict) -> dict:
     report = validate(report)
-    folder = report_destination()
-    basename = "pc-inspector-" + dt.datetime.now(dt.timezone.utc).strftime(
-        "%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
-    json_file = folder / (basename + ".json")
-    html_file = folder / (basename + ".html")
-    # 'x' refuses clobbering existing reports; never touches internal disks.
-    with json_file.open("x", encoding="utf-8") as handle:
-        json.dump(report, handle, ensure_ascii=False, indent=2)
-        handle.write("\n")
-        handle.flush()
-        os.fsync(handle.fileno())
-    with html_file.open("x", encoding="utf-8") as handle:
-        handle.write(make_html(report))
-        handle.flush()
-        os.fsync(handle.fileno())
-    return {"saved": True, "json": str(json_file), "html": str(html_file)}
+    usb_mount = report_destination()
+    session = "pc-inspector-" + dt.datetime.now(dt.timezone.utc).strftime(
+        "%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:16]
+    json_bytes = (
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8")
+    html_bytes = make_html(report).encode("utf-8")
+    return store_verified_bundle(usb_mount, session, json_bytes, html_bytes)
 
 
 def main() -> int:

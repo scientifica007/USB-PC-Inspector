@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/iso.yml'
+      - 'live/**'
+      - 'scripts/build_iso.sh'
   workflow_dispatch:
 jobs:
   build:
@@ -22,6 +24,11 @@ jobs:
                 mtools dosfstools ca-certificates
               ./scripts/build_iso.sh
             '
+      - name: Verify live account in built root filesystem
+        run: |
+          sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/passwd | grep -E '^user:[^:]*:[0-9]+:'
+          sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/group | grep -E '^autologin:'
+          sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/shadow | awk -F: '$1=="user" && $2 !~ /^(!|\\*)/ {ok=1} END {exit !ok}'
       - name: Generate SHA256 checksum
         run: |
           cd live

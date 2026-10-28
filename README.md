@@ -1,6 +1,6 @@
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
-**v0.1.1-beta.1 development prototype — Legacy BIOS boot on HP 630 and GitHub Actions ISO build verified (27/10/2026); USB report persistence not yet field-validated.**
+**v0.1.2-beta.1 development prototype — HP 630 Legacy BIOS boot and persistent USB report recovery verified on 28/10/2026; new GTK 3 Arabic dashboard awaits physical-display validation.**
 
 A portable, Arabic-first, offline diagnostic system designed to boot from USB
 even if the target computer has no internal SSD/HDD or a completely empty disk.
@@ -13,18 +13,17 @@ The project targets 64-bit Intel/AMD machines first.
 - Preliminary evidence-based L1 purchase guidance (do not buy / inspect before payment / undetermined); no health score or price valuation.
 - Explicit "not available / not examined" states; no claim that a computer is
   healthy or new solely because no warnings are displayed.
-- Arabic Tkinter GUI; JSON scan result and escaped HTML report.
+- Native GTK 3 + Pango Arabic RTL dashboard with progressive facts, prominent evidence-based L1 verdict and separate LTR JSON view. The former Tkinter GUI is retained as a legacy fallback, not launched by default.
 - Dedicated USB-only report writer for an exFAT/FAT partition labeled
   PCINSPDATA or Ventoy. Validated mount source, independent session directories,
-  JSON/HTML read-back, SHA-256 completion manifest and fsync; **external USB
-  save after boot still needs real hardware validation**. No intended writing to internal disks.
+  JSON/HTML read-back, SHA-256 completion manifest and fsync; **save, shutdown, reboot and SHA-256 verification were field-tested on an independent FAT32 PCINSPDATA partition**; writing to the Ventoy boot partition itself is not verified. No intended writing to internal disks.
 - Debian Trixie Live ISO recipe with BIOS + UEFI bootloader configuration.
-- Automated Python unit-test workflow on pushes and ISO build workflow (source changes to `inspector/` or `bin/` trigger ISO builds). **Successful CI execution and artifact availability require independent verification.**
+- Automated Python unit-test workflow on pushes and ISO build workflow (source changes to `inspector/` or `bin/` trigger ISO builds). **CI outcomes for this revision must be checked independently before announcing a new ISO.**
 
-**Implementation is not field validation:** HP 630 Legacy BIOS + Ventoy boot, GUI startup, L1 hardware data and JSON generation were verified during a physical field test on 27/10/2026. That build failed to mount the Ventoy data partition read-write for report export. A guarded USB writer fix has automated unit coverage, but save/reboot/reopen on the real medium remains unverified. UEFI, zero-internal-disk boot and the 10–30 second post-boot L1 target also remain unverified. Scan durations do not include boot time. Arabic rendering in Tkinter/Openbox is currently inadequate.
+**Field evidence:** On 28/10/2026, HP 630 booted via Ventoy, scanned in 2.18s after the collector started, saved `report.json`, `report.html` and `complete.json` to an independent FAT32 `PCINSPDATA` partition, rebooted into Ubuntu, and verified matching SHA-256 digests. The new GTK dashboard has not yet been observed on physical hardware. UEFI and zero-disk boot remain untested. The scanner time excludes USB boot.
 
 **Not implemented yet:** full RAM diagnostics, CPU stress testing, BIOS firmware
-integrity verification, keyboard/display guided tests, confirmed hardware boot,
+integrity verification, keyboard/display guided tests, broad hardware compatibility testing,
 or any guarantee that a laptop is new.
 
 ## Try the scanner from Linux
@@ -34,7 +33,10 @@ From the repository root, with Python 3.10+:
     python3 -m inspector.core > report.json
     python3 -m inspector.core --events > inspection-events.jsonl
     python3 -m unittest discover -s tests -v
-    python3 -m inspector.gui
+    python3 -m inspector.gtk_gui
+
+The GTK interface requires `python3-gi` and `gir1.2-gtk-3.0`.
+For the old Tk fallback only: `python3 -m inspector.gui`.
 
 The graphical option requires tkinter. Without privileged helpers, SMART and
 some DMI information can be unavailable. The complete Live image installs
@@ -54,7 +56,8 @@ appears as a downloadable workflow artifact *only if the build passes*.
 A successful ISO build still requires testing on physical hardware.
 
 For USB preparation and saved reports, read [docs/USB.md](docs/USB.md).
-See also [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md).
+See also [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md)
+and [GTK Arabic UI acceptance](docs/GTK_ARABIC_UI_2026-10-28.md).
 For implemented features and planned validation, read
 [docs/ROADMAP.md](docs/ROADMAP.md).
 

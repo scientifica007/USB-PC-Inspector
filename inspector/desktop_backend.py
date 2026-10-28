@@ -76,6 +76,9 @@ def collect_l1(emit: Callable[[str, Any], None]) -> None:
         try:
             _stream(["sudo", "-n", COLLECT_HELPER, "--events"], emit, False)
             return
+        except TimeoutError:
+            # Python TimeoutError is an OSError subclass; never repeat a timed-out scan.
+            raise
         except (OSError, RuntimeError):
             emit("reset", None)
     _stream([sys.executable, "-m", "inspector.core", "--events"], emit, True)

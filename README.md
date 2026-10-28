@@ -1,6 +1,6 @@
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
-**v0.1.2-beta.1 development prototype — HP 630 Legacy BIOS boot and persistent USB report recovery verified on 28/10/2026; new GTK 3 Arabic dashboard awaits physical-display validation.**
+**v0.1.2-beta.1 development prototype — HP 630 Legacy BIOS boot, Arabic GTK 3 dashboard, and persistent USB report recovery field-verified on 28/10/2026; two saved versioned report sessions coexist.**
 
 A portable, Arabic-first, offline diagnostic system designed to boot from USB
 even if the target computer has no internal SSD/HDD or a completely empty disk.
@@ -20,7 +20,7 @@ The project targets 64-bit Intel/AMD machines first.
 - Debian Trixie Live ISO recipe with BIOS + UEFI bootloader configuration.
 - Automated Python unit-test workflow on pushes and ISO build workflow (source changes to `inspector/` or `bin/` trigger ISO builds). **CI outcomes for this revision must be checked independently before announcing a new ISO.**
 
-**Field evidence:** On 28/10/2026, HP 630 booted via Ventoy, scanned in 2.18s after the collector started, saved `report.json`, `report.html` and `complete.json` to an independent FAT32 `PCINSPDATA` partition, rebooted into Ubuntu, and verified matching SHA-256 digests. The new GTK dashboard has not yet been observed on physical hardware. UEFI and zero-disk boot remain untested. The scanner time excludes USB boot.
+**Field evidence:** On 28/10/2026, HP 630 booted via Ventoy, scanned in 2.18s after the collector started, saved `report.json`, `report.html` and `complete.json` to an independent FAT32 `PCINSPDATA` partition, rebooted into Ubuntu, and verified matching SHA-256 digests. The GTK dashboard was observed on HP 630 physical hardware with connected Arabic RTL and LTR JSON; the second saved session was retrieved in Ubuntu and independently SHA-256 verified. Same-Live-session two-scan test, UEFI and zero-disk boot remain untested. UEFI and zero-disk boot remain untested. The scanner time excludes USB boot.
 
 **Not implemented yet:** full RAM diagnostics, CPU stress testing, BIOS firmware
 integrity verification, keyboard/display guided tests, broad hardware compatibility testing,
@@ -56,7 +56,7 @@ appears as a downloadable workflow artifact *only if the build passes*.
 A successful ISO build still requires testing on physical hardware.
 
 For USB preparation and saved reports, read [docs/USB.md](docs/USB.md).
-See also [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md)
+See also [v0.1.2 field validation](docs/FIELD_VALIDATION_2026-10-28_V012.md) and [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md)
 and [GTK Arabic UI acceptance](docs/GTK_ARABIC_UI_2026-10-28.md).
 For implemented features and planned validation, read
 [docs/ROADMAP.md](docs/ROADMAP.md).

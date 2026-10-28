@@ -141,5 +141,53 @@ class USBStoreTests(unittest.TestCase):
                     usb_store.verified_mount(candidate, target)
 
 
+    def test_pcinspector_partition_priority_rejects_internal_decoy(self):
+        tree = {"blockdevices": [
+            {"type": "disk", "tran": "sata", "children": [
+                {"type": "part", "path": "/dev/sda2", "label": "PCINSPDATA",
+                 "fstype": "vfat"}]},
+            {"type": "disk", "tran": "usb", "children": [
+                {"type": "part", "path": "/dev/sdb1", "label": "Ventoy",
+                 "fstype": "exfat"},
+                {"type": "part", "path": "/dev/sdb3", "label": "PCINSPDATA",
+                 "fstype": "vfat"}]},
+        ]}
+        self.assertEqual(usb_store.find_usb_partition(tree)["path"], "/dev/sdb3")
+        tree["blockdevices"][1]["tran"] = "sata"
+        self.assertIsNone(usb_store.find_usb_partition(tree))
+
+    def test_two_reports_in_single_process_keep_both_bundles_and_hashes(self):
+        """Mock USB mount: two L1 reports saved sequentially, without real devices."""
+        import hashlib
+        import json
+        with tempfile.TemporaryDirectory() as work:
+            first = {"schema_version": 1, "bios": {"model": "scan-one"},
+                     "storage": [], "findings": []}
+            second = {"schema_version": 1, "bios": {"model": "scan-two"},
+                      "storage": [], "findings": []}
+            with patch.object(usb_store, "report_destination", return_value=Path(work)), \
+                 patch.object(usb_store, "make_html",
+                              side_effect=lambda r: "<html>" + r["bios"]["model"] + "</html>"):
+                receipt_a = usb_store.save(first)
+                original_json = Path(receipt_a["json"]).read_bytes()
+                original_html = Path(receipt_a["html"]).read_bytes()
+                receipt_b = usb_store.save(second)
+            self.assertTrue(receipt_a["saved"] and receipt_b["saved"])
+            self.assertNotEqual(Path(receipt_a["json"]).parent,
+                                Path(receipt_b["json"]).parent)
+            self.assertEqual(Path(receipt_a["json"]).read_bytes(), original_json)
+            self.assertEqual(Path(receipt_a["html"]).read_bytes(), original_html)
+            self.assertEqual(json.loads(Path(receipt_b["json"]).read_bytes())
+                             ["bios"]["model"], "scan-two")
+            self.assertEqual(len(list((Path(work) / "PC-Inspector-Reports").iterdir())), 2)
+            for receipt in (receipt_a, receipt_b):
+                manifest = json.loads(Path(receipt["manifest"]).read_text())
+                self.assertIs(manifest["complete"], True)
+                for name, key in (("report.json", "json"), ("report.html", "html")):
+                    payload = Path(receipt[key]).read_bytes()
+                    self.assertEqual(len(payload), manifest["files"][name]["bytes"])
+                    self.assertEqual(hashlib.sha256(payload).hexdigest(),
+                                     manifest["files"][name]["sha256"])
+
 if __name__ == "__main__":
     unittest.main()

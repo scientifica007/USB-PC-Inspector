@@ -103,5 +103,24 @@ class DesktopBackendTests(unittest.TestCase):
             run.assert_not_called()
 
 
+    def test_two_completed_scans_can_be_saved_without_implicit_rescan(self):
+        first = {"schema_version": 1, "bios": {"model": "one"}}
+        second = {"schema_version": 1, "bios": {"model": "two"}}
+        receipts = [
+            Mock(returncode=0, stdout='{"saved":true,"json":"/usb/session-1/report.json"}'),
+            Mock(returncode=0, stdout='{"saved":true,"json":"/usb/session-2/report.json"}'),
+        ]
+        with patch.object(backend.os.path, "isfile", return_value=True), \
+             patch.object(backend.subprocess, "run", side_effect=receipts) as saver, \
+             patch.object(backend, "_stream") as collector:
+            receipt_a = backend.save_to_usb(first)
+            receipt_b = backend.save_to_usb(second)
+        self.assertNotEqual(receipt_a["json"], receipt_b["json"])
+        self.assertEqual(saver.call_count, 2)
+        sent = [json.loads(call.kwargs["input"])["bios"]["model"]
+                for call in saver.call_args_list]
+        self.assertEqual(sent, ["one", "two"])
+        collector.assert_not_called()
+
 if __name__ == "__main__":
     unittest.main()

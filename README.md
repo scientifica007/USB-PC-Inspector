@@ -56,7 +56,7 @@ appears as a downloadable workflow artifact *only if the build passes*.
 A successful ISO build still requires testing on physical hardware.
 
 For USB preparation and saved reports, read [docs/USB.md](docs/USB.md).
-See also [v0.1.2 field validation](docs/FIELD_VALIDATION_2026-10-28_V012.md) and [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md)
+See also [B/D/G acceptance procedures](docs/ACCEPTANCE_B_D_G_2026-10-28.md) and [v0.1.2 field validation](docs/FIELD_VALIDATION_2026-10-28_V012.md) and [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md)
 and [GTK Arabic UI acceptance](docs/GTK_ARABIC_UI_2026-10-28.md).
 For implemented features and planned validation, read
 [docs/ROADMAP.md](docs/ROADMAP.md).

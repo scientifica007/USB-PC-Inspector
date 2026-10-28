@@ -1,6 +1,7 @@
 """GTK smoke tests. Full UI test requires xvfb-run and python3-gi."""
 import os
 import unittest
+from unittest.mock import patch
 
 try:
     from inspector import gtk_gui
@@ -52,6 +53,24 @@ class GtkSmokeTests(unittest.TestCase):
             self.assertIn("SMART", win.decision_reason.get_text())
             self.assertEqual(len(win.notes_box.get_children()), 1)
             self.assertEqual(win.fact_labels[2].get_text(), "8.0 GiB")
+        finally:
+            win.destroy()
+
+    def test_save_failure_preserves_report_and_retry_button(self):
+        win = gtk_gui.InspectorWindow()
+        try:
+            report = {"schema_version": 1, "bios": {"model": "demo"}}
+            win.report = report
+            win.saving = True
+            win.save_button.set_sensitive(False)
+            with patch.object(win, "_dialog") as alert:
+                win._receive("save_error", "no writable USB partition")
+            self.assertIs(win.report, report)
+            self.assertFalse(win.saving)
+            self.assertTrue(win.save_button.get_sensitive())
+            self.assertTrue(win.scan_button.get_sensitive())
+            self.assertIn("الذاكرة", win.status.get_text())
+            alert.assert_called_once()
         finally:
             win.destroy()
 

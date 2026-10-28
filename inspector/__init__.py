@@ -1,2 +1,2 @@
 """USB PC Inspector: offline, read-only hardware assessment."""
-__version__ = "0.1.1-beta.1"
+__version__ = "0.1.2-beta.1"

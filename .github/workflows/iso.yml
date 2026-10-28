@@ -34,7 +34,7 @@ jobs:
           sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/shadow | awk -F: '$1=="user" && substr($2,1,1)=="$" && length($2)>20 {ok=1} END {exit !ok}'
           # Confirm that the graphical session and launcher are included in the ISO.
           sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/lightdm/lightdm.conf.d/50-pc-inspector.conf | grep -Fx 'autologin-user=user'
-          sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/xdg/openbox/autostart | grep -F 'inspector.gui'
+          sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/xdg/openbox/autostart | grep -F 'inspector.gtk_gui'
           sudo unsquashfs -cat live/binary/live/filesystem.squashfs opt/pc-inspector/inspector/gtk_gui.py | grep -F 'class InspectorWindow(Gtk.Window):'
       - name: Generate SHA256 checksum
         run: |

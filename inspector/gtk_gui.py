@@ -9,11 +9,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import threading
-import traceback
 
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
 
 from . import __version__
 from .desktop_backend import collect_l1, save_to_usb
@@ -55,7 +54,7 @@ def label(text: str, style: str | None = None, *, wrap: bool = False) -> Gtk.Lab
     widget.set_hexpand(True)
     if wrap:
         widget.set_line_wrap(True)
-        widget.set_line_wrap_mode(2)  # Pango.WrapMode.WORD_CHAR
+        widget.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
     if style:
         widget.get_style_context().add_class(style)
     return widget
@@ -235,10 +234,6 @@ class InspectorWindow(Gtk.Window):
         self.notes_box.show_all()
         self.timing_label.set_text("زمن الفحص: " + model["timing"])
         self.scope_label.set_text(model["scope"])
-
-    @staticmethod
-    def _notify(kind: str, payload: object) -> None:
-        GLib.idle_add(kind, payload)
 
     def _emit(self, kind: str, payload: object) -> None:
         GLib.idle_add(self._receive, kind, payload)

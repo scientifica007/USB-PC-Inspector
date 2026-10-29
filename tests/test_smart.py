@@ -34,7 +34,8 @@ class SmartBitmaskTests(unittest.TestCase):
                 "serial_number": "private-id",
                 "ata_smart_error_log": {"summary": {"count": 2}}}
         result = interpret(data, 64)
-        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["status"], "reported")
+        self.assertIsNone(result["read_warning"])
         self.assertNotIn("serial_number", result["diagnostic_evidence"])
         self.assertEqual(result["diagnostic_evidence"]["ata_smart_error_log"]["summary"]["count"], 2)
 

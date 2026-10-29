@@ -32,7 +32,8 @@ class CoreTests(unittest.TestCase):
                           return_value={"ok": False, "code": 8,
                                         "stdout": json.dumps(sample), "error": ""}):
             result = core.smart_summary("/dev/nvme0n1")
-        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["status"], "reported")
+        self.assertFalse(result["smartctl_exit"]["read_failure"])
         self.assertFalse(result["overall_passed"])
         self.assertEqual(result["power_on_hours"], 4826)
 

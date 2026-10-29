@@ -1,6 +1,6 @@
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
-**Development source: v0.1.3-beta.1 (L1 diagnostic-accuracy fixes, automation-tested; NOT yet field-tested). Last field-validated ISO: v0.1.2-beta.1 — HP 630 Legacy BIOS, Arabic GTK3, four persistent USB report sessions and two scans/saves in one Live session confirmed on 28–29/10/2026.**
+**Field-validated on HP 630 / Legacy BIOS: v0.1.3-beta.1 — Ventoy boot, Arabic GTK3 L1 scan, evidence-based SMART assessment, USB save, shutdown, Ubuntu recovery and matching JSON/HTML SHA-256 (29/10/2026). Five separate report directories are visible. UEFI, diskless boot, and D/G safety field acceptance remain untested.**
 
 A portable, Arabic-first, offline diagnostic system designed to boot from USB
 even if the target computer has no internal SSD/HDD or a completely empty disk.
@@ -21,6 +21,8 @@ The project targets 64-bit Intel/AMD machines first.
 - Automated Python unit-test workflow on pushes and ISO build workflow (source changes to `inspector/` or `bin/` trigger ISO builds). **CI outcomes for this revision must be checked independently before announcing a new ISO.**
 
 **Field evidence:** On 28/10/2026, HP 630 booted via Ventoy/Legacy BIOS, ran the L1 inspection, and saved verified JSON/HTML/complete.json bundles to an independent FAT32 `PCINSPDATA` partition, recoverable after restarting into Ubuntu. On **29/10/2026**, the user explicitly confirmed two L1 scans and two saves **in the same Debian Live session with no reboot between them**. After returning to Ubuntu, four session directories were visible; both new bundles were independently verified (SHA-256 matches for all four JSON/HTML files, valid completion manifests and JSON). The older two directories remained visible; their hashes were not rechecked after the latest test. **B: PASS for the same-session two-scan/two-save persistence behavior on this tested hardware/USB**, with that integrity evidence limit. HP 630 RAM: **8 GB installed (2 × 4 GB DDR3); ~7.56 GiB reported to Linux**. The GTK dashboard's Arabic RTL and LTR JSON were field-observed. UEFI and zero-internal-disk boot remain untested; scan durations exclude USB boot. [29 Oct B field report](docs/FIELD_VALIDATION_2026-10-29_B.md).
+
+**Most recent field verification (29/10/2026):** v0.1.3-beta.1 booted on the real HP 630, scanned in **1.867s** after the collector started (excludes USB boot), displayed the true SMART failure without mislabelling it as a read error, and successfully recovered `report.json` / `report.html` / `complete.json` from `PCINSPDATA` after shutting down Debian Live and returning to Ubuntu. The two report files matched their completion-manifest SHA-256 digests exactly. BIOS date is localized in HTML while JSON preserves its original format. [v0.1.3 field acceptance](docs/FIELD_VALIDATION_2026-10-29_V013.md). **Known reporting UX gaps:** HTML currently lacks an explicit purchase-assessment summary and embeds dense SMART evidence in a single table cell; GTK's RAM card title does not distinguish Linux-visible memory from installed RAM. These issues do not invalidate the tested persistence result.
 
 **Not implemented yet:** full RAM diagnostics, CPU stress testing, BIOS firmware
 integrity verification, keyboard/display guided tests, broad hardware compatibility testing,

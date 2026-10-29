@@ -149,12 +149,15 @@ class InspectorWindow(Gtk.Window):
         grid = Gtk.Grid(column_spacing=12, row_spacing=12)
         grid.set_column_homogeneous(True)
         self.fact_labels: list[Gtk.Label] = []
-        titles = ("الجهاز", "المعالج", "الذاكرة RAM",
+        self.fact_titles: list[Gtk.Label] = []
+        titles = ("الجهاز", "المعالج", "الذاكرة المركبة / التي يراها النظام",
                   "التخزين الداخلي", "SMART", "البطارية")
         for index, title in enumerate(titles):
             card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
             card.get_style_context().add_class("fact")
-            card.pack_start(label(title, "fact-label"), False, False, 0)
+            title_label = label(title, "fact-label", wrap=True)
+            card.pack_start(title_label, False, False, 0)
+            self.fact_titles.append(title_label)
             value_label = label("قيد الفحص", "fact-value", wrap=True)
             value_label.set_valign(Gtk.Align.START)
             card.pack_start(value_label, True, True, 0)
@@ -219,7 +222,9 @@ class InspectorWindow(Gtk.Window):
         self.decision_title.set_text(model["label"])
         self.decision_reason.set_text(model["reason"])
         self.status.set_text(model["state"])
-        for widget, (_key, value) in zip(self.fact_labels, model["facts"]):
+        for title_widget, widget, (key, value) in zip(
+                self.fact_titles, self.fact_labels, model["facts"]):
+            title_widget.set_text(key)
             widget.set_text(value)
         for child in self.notes_box.get_children():
             self.notes_box.remove(child)

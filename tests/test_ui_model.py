@@ -2,7 +2,7 @@
 import unittest
 
 from inspector.ui_model import (
-    dashboard_model, date_ar, memory_text, disk_text, smart_text, short,
+    dashboard_model, date_ar, memory_text, memory_summary, disk_text, smart_text, short,
 )
 
 
@@ -73,6 +73,35 @@ class DashboardModelTests(unittest.TestCase):
         self.assertEqual(memory_text(8 * 1024 ** 3), "8.0 GiB")
         self.assertEqual(memory_text(None), "غير متاح")
         self.assertIn("500 GB", disk_text(self.fixture()["storage"]))
+
+    def test_installed_ram_is_not_kernel_memtotal(self):
+        memory = {"total_bytes": 8115175424, "slots_status": "reported",
+                  "slots": [{"size": "4 GB", "type": "DDR3"},
+                            {"size": "4 GB", "type": "DDR3"}]}
+        summary = memory_summary(memory)
+        self.assertEqual(summary["installed"], "8 GB (2 × 4 GB DDR3)")
+        self.assertEqual(summary["visible"], "7.6 GiB")
+        model = dashboard_model({"memory": memory})
+        title, value = model["facts"][2]
+        self.assertIn("المركبة", title)
+        self.assertIn("8 GB (2 × 4 GB DDR3)", value)
+        self.assertIn("7.6 GiB", value)
+
+    def test_unavailable_dmi_never_infers_installed_capacity(self):
+        memory = {"total_bytes": 8 * 1024**3, "slots_status": "unavailable",
+                  "slots": []}
+        self.assertEqual(memory_summary(memory)["installed"], "غير متاح")
+        memory["slots_status"] = "reported"
+        memory["slots"] = [{"size": "4 GB"}, {"size": "No Module Installed"}]
+        self.assertEqual(memory_summary(memory)["installed"], "غير متاح")
+
+    def test_mixed_dmi_capacity_is_summed_without_guessing(self):
+        memory = {"total_bytes": None, "slots_status": "reported",
+                  "slots": [{"size": "4096 MB", "type": "DDR3"},
+                            {"size": "8 GB", "type": "DDR4"}]}
+        summary = memory_summary(memory)
+        self.assertEqual(summary["installed"], "12 GB (4 GB + 8 GB)")
+        self.assertEqual(summary["visible"], "غير متاح")
 
     def test_clean_status_does_not_prove_health(self):
         self.assertEqual(smart_text([{"smart": {"overall_passed": True,

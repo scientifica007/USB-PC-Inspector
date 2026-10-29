@@ -93,22 +93,36 @@ def make_html(report: dict[str, Any]) -> str:
             health_label = "لم يُبلَّغ عن إخفاق حالي؛ ليست شهادة سلامة"
         else:
             health_label = "النتيجة غير محسومة"
+        diagnostic = obj(smart.get("diagnostic_evidence"))
+        attr_info = obj(diagnostic.get("ata_smart_attributes"))
+        attributes = attr_info.get("table")
+        failed_attributes = []
+        if isinstance(attributes, list):
+            for attribute in attributes:
+                if isinstance(attribute, dict) and attribute.get("when_failed") == "now":
+                    failed_attributes.append(str(attribute.get("name") or attribute.get("id")))
+        errors_info = obj(obj(diagnostic.get("ata_smart_error_log")).get("summary"))
+        capacity = disk.get("size_bytes")
+        capacity_label = (f"{capacity / 1_000_000_000:.0f} GB"
+                          if type(capacity) is int and capacity > 0 else None)
         basic = {
             "المسار": disk.get("path"),
             "طراز القرص": disk.get("model"),
-            "السعة (بايت)": disk.get("size_bytes"),
+            "السعة": capacity_label,
+            "السعة الدقيقة (بايت)": capacity,
             "الناقل": disk.get("transport"),
             "حالة SMART": health_label,
             "اكتمال قراءة SMART": smart.get("status"),
             "خطأ القراءة": smart.get("read_warning"),
             "رمز smartctl": exit_info.get("code"),
             "خطأ تنفيذ/قراءة": exit_info.get("read_failure"),
+            "سمات SMART تحت العتبة حاليًا": ", ".join(failed_attributes) or None,
+            "عدد أخطاء سجل SMART (تراكمية)": errors_info.get("count"),
             "ساعات التشغيل": smart.get("power_on_hours"),
             "درجة الحرارة (°C)": smart.get("temperature_c"),
         }
         disk_parts.append(table("التخزين الداخلي", basic))
-        diagnostic = smart.get("diagnostic_evidence")
-        if isinstance(diagnostic, dict) and diagnostic:
+        if diagnostic:
             pretty = json.dumps(diagnostic, ensure_ascii=False, indent=2)
             disk_parts.append(
                 '<details class="technical"><summary>تفاصيل SMART الفنية (حقول مختارة)</summary>'

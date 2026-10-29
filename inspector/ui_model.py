@@ -143,7 +143,7 @@ def dashboard_model(
     facts = (
         ("الجهاز", short(bios.get("model") or bios.get("manufacturer"), 88)),
         ("المعالج", short(cpu.get("model"), 115)),
-        ("الذاكرة RAM", memory_text(memory.get("total_bytes"))),
+        ("الذاكرة التي يراها النظام", memory_text(memory.get("total_bytes"))),
         ("التخزين الداخلي", disk_text(disks)),
         ("SMART", smart_text(disks)),
         ("البطارية", battery_text),

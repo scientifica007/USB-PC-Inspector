@@ -1,5 +1,6 @@
 """Produce offline HTML reports with escaped values and no external dependencies."""
 from __future__ import annotations
+import datetime as dt
 import html
 import json
 from typing import Any
@@ -29,7 +30,14 @@ def make_html(report: dict[str, Any]) -> str:
         "</b> — " + esc(x.get("message")) + "</article>"
         for x in report.get("findings", [])
     )
-    content = table("النظام والـ BIOS", report.get("bios", {}))
+    bios = dict(report.get("bios") or {})
+    raw_date = bios.get("bios_date")
+    if isinstance(raw_date, str):
+        try:
+            bios["bios_date"] = dt.datetime.strptime(raw_date, "%m/%d/%Y").strftime("%d/%m/%Y")
+        except ValueError:
+            pass
+    content = table("النظام والـ BIOS", bios)
     content += table("المعالج", report.get("cpu", {}))
     content += table("الذاكرة", report.get("memory", {}))
     for disk in report.get("storage", []):

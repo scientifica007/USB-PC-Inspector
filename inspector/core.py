@@ -215,6 +215,10 @@ def build_findings(report: dict[str, Any]) -> list[dict[str, str]]:
         if flags.get("read_failure") is True:
             findings.append({"level": "unknown", "code": "smart_read_incomplete",
                              "message": "تعذر تنفيذ بعض أوامر SMART أو قراءة بياناتها بالكامل."})
+        elif (smart.get("status") == "partial" and
+              type(smart.get("overall_passed")) is not bool):
+            findings.append({"level": "unknown", "code": "smart_read_incomplete",
+                             "message": "لم تُسترجع نتيجة SMART مكتملة أو صريحة عن حالة القرص."})
         if smart.get("overall_passed") is False:
             findings.append({"level": "warning", "code": "smart_failed",
                              "message": "القرص أبلغ عن إخفاق في تقييم SMART: " + str(disk["path"])})

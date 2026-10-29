@@ -29,6 +29,14 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(validate({"schema_version": 1, "storage": [],
                                    "bios": {}, "findings": []})["schema_version"], 1)
 
+    def test_html_localizes_bios_date_without_mutating_json(self):
+        source = {"bios": {"bios_date": "12/13/2011"}, "cpu": {}, "memory": {},
+                  "storage": [], "battery": [], "findings": []}
+        html = make_html(source)
+        self.assertIn("13/12/2011", html)
+        self.assertNotIn("12/13/2011", html)
+        self.assertEqual(source["bios"]["bios_date"], "12/13/2011")
+
     def test_html_escapes_untrusted_firmware_strings(self):
         report = {"bios": {"model": "<script>alert(1)</script>"},
                   "cpu": {}, "memory": {}, "storage": [], "battery": [],

@@ -21,6 +21,8 @@ def assess(report: dict[str, Any]) -> dict[str, Any]:
         not isinstance(d, dict)
         or not isinstance(d.get("smart"), dict)
         or d["smart"].get("status") in ("unavailable", "not_tested", None)
+        or (d["smart"].get("status") == "partial" and
+            type(d["smart"].get("overall_passed")) is not bool)
         for d in storage
     )
     critical = "smart_failed" in codes or "smart_critical_exit" in codes

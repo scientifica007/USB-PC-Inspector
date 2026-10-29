@@ -6,6 +6,7 @@ from the completed report only and is never inferred from partial snapshots.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from typing import Any
 
 VERDICTS = {
@@ -46,6 +47,48 @@ def memory_text(value: Any) -> str:
     if type(value) is not int or value <= 0:
         return UNKNOWN
     return f"{value / (1024 ** 3):.1f} GiB"
+
+
+def memory_summary(memory: Any) -> dict[str, str]:
+    """Installed SMBIOS RAM is different from Linux MemTotal.
+
+    Never infer installed capacity from MemTotal. If a DMI slot has an
+    unknown/malformed size, the installed total is left unknown.
+    """
+    memory = memory if isinstance(memory, dict) else {}
+    visible = memory_text(memory.get("total_bytes"))
+    slots = memory.get("slots")
+    if memory.get("slots_status") != "reported" or not isinstance(slots, list) or not slots:
+        return {"installed": UNKNOWN, "visible": visible}
+
+    sizes_mib = []
+    types = []
+    for slot in slots:
+        if not isinstance(slot, dict):
+            return {"installed": UNKNOWN, "visible": visible}
+        size = slot.get("size")
+        match = re.fullmatch(r"\s*([1-9][0-9]*)\s*(GB|MB)\s*", size, re.I) if isinstance(size, str) else None
+        if match is None:
+            return {"installed": UNKNOWN, "visible": visible}
+        amount = int(match.group(1))
+        mib = amount * 1024 if match.group(2).upper() == "GB" else amount
+        sizes_mib.append(mib)
+        types.append(slot.get("type"))
+
+    def size_label(mib: int) -> str:
+        if mib % 1024 == 0:
+            return f"{mib // 1024} GB"
+        return f"{mib} MB"
+
+    installed = size_label(sum(sizes_mib))
+    if len(set(sizes_mib)) == 1:
+        breakdown = f"{len(sizes_mib)} × {size_label(sizes_mib[0])}"
+    else:
+        breakdown = " + ".join(size_label(mib) for mib in sizes_mib)
+    common_type = types[0] if types and all(t == types[0] for t in types) else None
+    if isinstance(common_type, str) and re.fullmatch(r"DDR[2-9]|LPDDR[2-9]", common_type):
+        breakdown += " " + common_type
+    return {"installed": f"{installed} ({breakdown})", "visible": visible}
 
 
 def disk_text(disks: Any) -> str:
@@ -143,7 +186,9 @@ def dashboard_model(
     facts = (
         ("الجهاز", short(bios.get("model") or bios.get("manufacturer"), 88)),
         ("المعالج", short(cpu.get("model"), 115)),
-        ("الذاكرة التي يراها النظام", memory_text(memory.get("total_bytes"))),
+        ("الذاكرة المركبة / التي يراها النظام",
+         "المركبة: " + memory_summary(memory)["installed"] +
+         "؛ يراها Linux: " + memory_summary(memory)["visible"]),
         ("التخزين الداخلي", disk_text(disks)),
         ("SMART", smart_text(disks)),
         ("البطارية", battery_text),

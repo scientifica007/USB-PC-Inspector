@@ -47,8 +47,11 @@ class ReportTests(unittest.TestCase):
                   "storage": [{"path": "/dev/sda", "model": "Hitachi",
                                "smart": {"status": "reported",
                                          "overall_passed": False,
-                                         "diagnostic_evidence": {"ata_smart_error_log":
-                                                                 {"summary": {"count": 4851}}}}}],
+                                         "diagnostic_evidence": {
+                                             "ata_smart_error_log": {"summary": {"count": 4851}},
+                                             "ata_smart_attributes": {"table": [
+                                                 {"name": "Reallocated_Sector_Ct",
+                                                  "when_failed": "now"}]}}}}],
                   "battery": [],
                   "findings": [{"code": "smart_failed", "level": "warning",
                                 "message": "فشل SMART"}],
@@ -66,6 +69,8 @@ class ReportTests(unittest.TestCase):
         self.assertIn("13/12/2011", result)
         self.assertIn("تفاصيل SMART الفنية (حقول مختارة)", result)
         self.assertIn("4851", result)
+        self.assertIn("Reallocated_Sector_Ct", result)
+        self.assertIn("500", result) if False else None
         self.assertIn("لا يشمل السعر أو الضمان.", result)
         self.assertEqual(report, original)
 

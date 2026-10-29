@@ -44,7 +44,7 @@ class ReportTests(unittest.TestCase):
                   "memory": {"total_bytes": 8115175424, "slots_status": "reported",
                              "slots": [{"size": "4 GB", "type": "DDR3"},
                                        {"size": "4 GB", "type": "DDR3"}]},
-                  "storage": [{"path": "/dev/sda", "model": "Hitachi",
+                  "storage": [{"path": "/dev/sda", "model": "Hitachi", "size_bytes": 500107862016,
                                "smart": {"status": "reported",
                                          "overall_passed": False,
                                          "diagnostic_evidence": {
@@ -70,7 +70,7 @@ class ReportTests(unittest.TestCase):
         self.assertIn("تفاصيل SMART الفنية (حقول مختارة)", result)
         self.assertIn("4851", result)
         self.assertIn("Reallocated_Sector_Ct", result)
-        self.assertIn("500", result) if False else None
+        self.assertIn("500 GB", result)
         self.assertIn("لا يشمل السعر أو الضمان.", result)
         self.assertEqual(report, original)
 

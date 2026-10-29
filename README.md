@@ -1,6 +1,6 @@
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
-**v0.1.2-beta.1 development prototype — HP 630 Legacy BIOS boot, Arabic GTK 3 dashboard, and persistent USB report recovery field-verified on 28/10/2026; two saved versioned report sessions coexist.**
+**v0.1.2-beta.1 development prototype — HP 630 Legacy BIOS boot, Arabic GTK 3 dashboard, and persistent USB report recovery field-verified on 28–29/10/2026; four report-session directories coexist, and two scans/saves in one Live session are field-confirmed.**
 
 A portable, Arabic-first, offline diagnostic system designed to boot from USB
 even if the target computer has no internal SSD/HDD or a completely empty disk.
@@ -20,7 +20,7 @@ The project targets 64-bit Intel/AMD machines first.
 - Debian Trixie Live ISO recipe with BIOS + UEFI bootloader configuration.
 - Automated Python unit-test workflow on pushes and ISO build workflow (source changes to `inspector/` or `bin/` trigger ISO builds). **CI outcomes for this revision must be checked independently before announcing a new ISO.**
 
-**Field evidence:** On 28/10/2026, HP 630 booted via Ventoy, scanned in 2.18s after the collector started, saved `report.json`, `report.html` and `complete.json` to an independent FAT32 `PCINSPDATA` partition, rebooted into Ubuntu, and verified matching SHA-256 digests. The GTK dashboard was observed on HP 630 physical hardware with connected Arabic RTL and LTR JSON; the second saved session was retrieved in Ubuntu and independently SHA-256 verified. Same-Live-session two-scan test, UEFI and zero-disk boot remain untested. UEFI and zero-disk boot remain untested. The scanner time excludes USB boot.
+**Field evidence:** On 28/10/2026, HP 630 booted via Ventoy/Legacy BIOS, ran the L1 inspection, and saved verified JSON/HTML/complete.json bundles to an independent FAT32 `PCINSPDATA` partition, recoverable after restarting into Ubuntu. On **29/10/2026**, the user explicitly confirmed two L1 scans and two saves **in the same Debian Live session with no reboot between them**. After returning to Ubuntu, four session directories were visible; both new bundles were independently verified (SHA-256 matches for all four JSON/HTML files, valid completion manifests and JSON). The older two directories remained visible; their hashes were not rechecked after the latest test. **B: PASS for the same-session two-scan/two-save persistence behavior on this tested hardware/USB**, with that integrity evidence limit. HP 630 RAM: **8 GB installed (2 × 4 GB DDR3); ~7.56 GiB reported to Linux**. The GTK dashboard's Arabic RTL and LTR JSON were field-observed. UEFI and zero-internal-disk boot remain untested; scan durations exclude USB boot. [29 Oct B field report](docs/FIELD_VALIDATION_2026-10-29_B.md).
 
 **Not implemented yet:** full RAM diagnostics, CPU stress testing, BIOS firmware
 integrity verification, keyboard/display guided tests, broad hardware compatibility testing,
@@ -56,7 +56,7 @@ appears as a downloadable workflow artifact *only if the build passes*.
 A successful ISO build still requires testing on physical hardware.
 
 For USB preparation and saved reports, read [docs/USB.md](docs/USB.md).
-See also [B/D/G acceptance procedures](docs/ACCEPTANCE_B_D_G_2026-10-28.md) and [v0.1.2 field validation](docs/FIELD_VALIDATION_2026-10-28_V012.md) and [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md)
+See also [B/D/G acceptance procedures](docs/ACCEPTANCE_B_D_G_2026-10-28.md) and [v0.1.2 field validation](docs/FIELD_VALIDATION_2026-10-28_V012.md) and [29 Oct B acceptance](docs/FIELD_VALIDATION_2026-10-29_B.md) and [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md)
 and [GTK Arabic UI acceptance](docs/GTK_ARABIC_UI_2026-10-28.md).
 For implemented features and planned validation, read
 [docs/ROADMAP.md](docs/ROADMAP.md).

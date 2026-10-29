@@ -58,9 +58,14 @@ def interpret(data: dict[str, Any], code: Any, stderr: str | None = None) -> dic
     # Restrict evidence to selected diagnostic fields; full raw JSON may include
     # serial numbers, WWNs, and other device identifiers.
     evidence = {k: v for k, v in evidence.items() if v is not None}
+    # Nonzero smartctl exits can report real drive failure without a read error.
+    # Bits 0–2 indicate command/read problems; bits 3–7 are diagnostic data.
+    incomplete_read = (exit_info["known"] is not True or
+                       exit_info["read_failure"] is True or
+                       type(smart.get("passed")) is not bool)
     return {
-        "status": "reported" if code == 0 else "partial",
-        "read_warning": None if code == 0 else "nonzero_exit",
+        "status": "partial" if incomplete_read else "reported",
+        "read_warning": "incomplete_smart_data" if incomplete_read else None,
         "smartctl_exit": exit_info,
         "overall_passed": smart.get("passed"),
         "power_on_hours": on_time.get("hours"),

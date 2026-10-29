@@ -1,6 +1,6 @@
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
-**v0.1.2-beta.1 development prototype — HP 630 Legacy BIOS boot, Arabic GTK 3 dashboard, and persistent USB report recovery field-verified on 28–29/10/2026; four report-session directories coexist, and two scans/saves in one Live session are field-confirmed.**
+**Development source: v0.1.3-beta.1 (L1 diagnostic-accuracy fixes, automation-tested; NOT yet field-tested). Last field-validated ISO: v0.1.2-beta.1 — HP 630 Legacy BIOS, Arabic GTK3, four persistent USB report sessions and two scans/saves in one Live session confirmed on 28–29/10/2026.**
 
 A portable, Arabic-first, offline diagnostic system designed to boot from USB
 even if the target computer has no internal SSD/HDD or a completely empty disk.
@@ -59,7 +59,7 @@ For USB preparation and saved reports, read [docs/USB.md](docs/USB.md).
 See also [B/D/G acceptance procedures](docs/ACCEPTANCE_B_D_G_2026-10-28.md) and [v0.1.2 field validation](docs/FIELD_VALIDATION_2026-10-28_V012.md) and [29 Oct B acceptance](docs/FIELD_VALIDATION_2026-10-29_B.md) and [USB save audit and acceptance matrix](docs/USB_SAVE_AUDIT_2026-10-27.md)
 and [GTK Arabic UI acceptance](docs/GTK_ARABIC_UI_2026-10-28.md).
 For implemented features and planned validation, read
-[docs/ROADMAP.md](docs/ROADMAP.md).
+[docs/ROADMAP.md](docs/ROADMAP.md). See [29 October diagnostic-accuracy audit](docs/DIAGNOSTIC_ACCURACY_2026-10-29.md) for the version boundary, SMART semantics and battery field note.
 
 ## Approved product direction (planned; not yet implemented)
 

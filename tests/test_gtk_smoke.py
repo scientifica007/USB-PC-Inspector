@@ -52,7 +52,22 @@ class GtkSmokeTests(unittest.TestCase):
             self.assertEqual(win.decision_title.get_text(), "لا يُنصح بالشراء")
             self.assertIn("SMART", win.decision_reason.get_text())
             self.assertEqual(len(win.notes_box.get_children()), 1)
-            self.assertEqual(win.fact_labels[2].get_text(), "8.0 GiB")
+            self.assertIn("8.0 GiB", win.fact_labels[2].get_text())
+            self.assertIn("المركبة", win.fact_titles[2].get_text())
+        finally:
+            win.destroy()
+
+    def test_memory_card_shows_installed_and_kernel_amounts(self):
+        win = gtk_gui.InspectorWindow()
+        try:
+            data = {"memory": {
+                "total_bytes": 8115175424, "slots_status": "reported",
+                "slots": [{"size": "4 GB", "type": "DDR3"},
+                          {"size": "4 GB", "type": "DDR3"}]}}
+            win._update_dashboard(gtk_gui.dashboard_model(data))
+            self.assertIn("المركبة", win.fact_titles[2].get_text())
+            self.assertIn("2 × 4 GB DDR3", win.fact_labels[2].get_text())
+            self.assertIn("7.6 GiB", win.fact_labels[2].get_text())
         finally:
             win.destroy()
 

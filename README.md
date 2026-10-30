@@ -2,6 +2,8 @@
 
 **Field-validated ISO: v0.1.4-beta.1 — on 30/10/2026 HP 630 booted via Ventoy Legacy BIOS, completed L1 in 1.514s (collector time), rendered installed-vs-Linux RAM and improved offline HTML, saved to PCINSPDATA, and recovered verified JSON/HTML after returning to Ubuntu. Six USB session directories were visible. UEFI, diskless boot and D/G safety field checks remain untested.**
 
+**New user requirements (30/10/2026):** The planned next milestones cover full hardware identity and age/power-on evidence, per-component health, evidence-based suitability for office/programming/video/gaming, optional purchase profiles, and phone report transfer over Wi-Fi/USB/Bluetooth where supported. These features are specified, **not yet implemented**, in [the product requirements document](docs/PRODUCT_REQUIREMENTS_2026-10-30.md).
+
 A portable, Arabic-first, offline diagnostic system designed to boot from USB
 even if the target computer has no internal SSD/HDD or a completely empty disk.
 The project targets 64-bit Intel/AMD machines first.

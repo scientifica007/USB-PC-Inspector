@@ -163,8 +163,81 @@ def make_html(report: dict[str, Any]) -> str:
         'لا يُعد فحص L1 اختبار إجهاد أو اختبارًا كاملًا للذاكرة.</small></section>'
     )
 
+    extended_html = ""
+    extensions = report.get("hardware_extensions")
+    if isinstance(extensions, dict):
+        graphics = extensions.get("graphics")
+        displays = extensions.get("displays")
+        networks = extensions.get("networks")
+        extended_html = '<section><h2>المكونات الإضافية — جرد دون اختبار صحة</h2>'
+        extended_html += '<p>وجود مكوّن في الجرد لا يثبت سلامته أو أداءه. عدم ظهوره لا يعني غيابه.</p></section>'
+        if isinstance(graphics, list) and graphics:
+            for gpu in graphics[:8]:
+                if isinstance(gpu, dict):
+                    extended_html += table("بطاقة الرسوميات GPU", {
+                        "الوصف": gpu.get("description") or "اسم غير متاح؛ معرّفات PCI أدناه",
+                        "Vendor ID": gpu.get("vendor_id"),
+                        "Device ID": gpu.get("device_id"),
+                        "العنوان على PCI": gpu.get("bus_address"),
+                        "حالة اختبار الأداء": "لم يُختبر",
+                        "المصدر": gpu.get("source"),
+                    })
+        else:
+            extended_html += '<section><h2>الرسوميات GPU</h2><p>بيانات غير متاحة؛ لا يُستنتج عدم وجود GPU.</p></section>'
+        if isinstance(displays, list) and displays:
+            for screen in displays[:12]:
+                if isinstance(screen, dict):
+                    extended_html += table("مخرج الشاشة", {
+                        "المنفذ": screen.get("connector"),
+                        "حالة الاتصال": screen.get("connection_status"),
+                        "الأوضاع المعلنة": screen.get("reported_modes"),
+                        "اختبار صحة الشاشة": "لم يُختبر",
+                    })
+        else:
+            extended_html += '<section><h2>الشاشة</h2><p>لا توجد بيانات عرض مؤكدة؛ لم تُختبر الشاشة.</p></section>'
+        if isinstance(networks, list) and networks:
+            for interface in networks[:16]:
+                if isinstance(interface, dict):
+                    extended_html += table("محول شبكة", {
+                        "الواجهة": interface.get("interface"),
+                        "النوع": "Wi-Fi" if interface.get("kind") == "wifi" else "سلكي أو غير محدد",
+                        "حالة التشغيل المعلنة": interface.get("operational_state"),
+                        "اختبار الاتصال": "لم يُختبر",
+                    })
+        else:
+            extended_html += '<section><h2>الشبكات</h2><p>بيانات غير متاحة؛ لم يُختبر الاتصال.</p></section>'
+
+    ages = report.get("age_evidence")
+    age_html = ""
+    if isinstance(ages, list):
+        age_html = '<section><h2>العمر وساعات التشغيل</h2><p>لا يستنتج هذا الفحص تاريخ تصنيع الحاسوب من BIOS أو ساعات تشغيل القرص.</p></section>'
+        if not ages:
+            age_html += '<section><p>لا تتوفر أدلة زمنية كافية.</p></section>'
+        for entry in ages[:24]:
+            if not isinstance(entry, dict):
+                continue
+            kind = entry.get("kind")
+            if kind == "powered_hours":
+                title, val = "ساعات تشغيل القرص", str(entry.get("value")) + " ساعة"
+            elif kind == "firmware_date":
+                title, val = "تاريخ BIOS (تاريخ Firmware)", entry.get("value")
+                try:
+                    val = dt.datetime.strptime(val, "%m/%d/%Y").strftime("%d/%m/%Y")
+                except (ValueError, TypeError):
+                    pass
+            elif kind == "edid_panel_date":
+                title, val = "تاريخ الشاشة من EDID", entry.get("value")
+            else:
+                title, val = "دليل زمني غير مصنف", entry.get("value")
+            age_html += table(title, {
+                "القيمة": val,
+                "المكون": entry.get("path") or entry.get("connector") or entry.get("component"),
+                "المصدر": entry.get("source"),
+                "حدود الاستنتاج": entry.get("limitations"),
+            })
+
     content = (
-        verdict_html + evidence_html + summary_html
+        verdict_html + evidence_html + summary_html + extended_html + age_html
         + table("النظام والـ BIOS", bios)
         + table("المعالج", cpu)
         + table("الذاكرة", memory_fields)

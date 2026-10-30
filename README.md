@@ -1,6 +1,6 @@
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
-**Field-validated ISO: v0.1.4-beta.1 — on 30/10/2026 HP 630 booted via Ventoy Legacy BIOS, completed L1 in 1.514s (collector time), rendered installed-vs-Linux RAM and improved offline HTML, saved to PCINSPDATA, and recovered verified JSON/HTML after returning to Ubuntu. Six USB session directories were visible. UEFI, diskless boot and D/G safety field checks remain untested.**
+**Development source: v0.1.5-beta.1 (P0 extended hardware and qualified age evidence; Python/GTK tests passed, new ISO field verification pending). Last physically field-validated ISO: v0.1.4-beta.1 on HP 630 / Ventoy Legacy BIOS (L1 1.514s collector time, RAM/SMART/HTML and PCINSPDATA recovery with matching SHA-256). UEFI, diskless boot and D/G field safety checks remain untested.**
 
 **New user requirements (30/10/2026):** The planned next milestones cover full hardware identity and age/power-on evidence, per-component health, evidence-based suitability for office/programming/video/gaming, optional purchase profiles, and phone report transfer over Wi-Fi/USB/Bluetooth where supported. These features are specified, **not yet implemented**, in [the product requirements document](docs/PRODUCT_REQUIREMENTS_2026-10-30.md).
 
@@ -11,6 +11,7 @@ The project targets 64-bit Intel/AMD machines first.
 ## Implemented source code
 
 - Read-only BIOS/UEFI, CPU, RAM, battery, internal disks and SMART inventory.
+- **v0.1.5-beta.1 development (not field-validated):** optional read-only PCI GPU, DRM display/EDID and network adapter inventory; BIOS firmware date, drive power-on hours and EDID panel date tracked as **qualified evidence**, not invented computer age. Extra GTK tab and HTML sections. No health certification from detecting a part. [P0 implementation and limitations](docs/IMPLEMENTATION_P0_2026-10-30.md).
 - Staged JSONL events (`--events`): first CPU/BIOS, then RAM, battery, disks and SMART, with in-process elapsed timings. The GUI auto-starts the scan and previews facts without premature purchase decisions.
 - Preliminary evidence-based L1 purchase guidance (do not buy / inspect before payment / undetermined); no health score or price valuation.
 - Explicit "not available / not examined" states; no claim that a computer is

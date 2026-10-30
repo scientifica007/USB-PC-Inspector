@@ -114,6 +114,7 @@ class InspectorWindow(Gtk.Window):
         main.pack_start(self.stack, True, True, 0)
 
         self._build_overview()
+        self._build_hardware_tab()
         self._build_json_tab()
         self._build_about_tab()
         self._update_dashboard(dashboard_model({}))
@@ -178,6 +179,23 @@ class InspectorWindow(Gtk.Window):
         outer.pack_start(self.scope_label, False, False, 0)
         self.stack.add_titled(scroller, "overview", "النتيجة السريعة")
 
+    def _build_hardware_tab(self) -> None:
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        view = Gtk.TextView()
+        view.set_editable(False)
+        view.set_cursor_visible(False)
+        view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        view.set_direction(Gtk.TextDirection.RTL)
+        view.set_left_margin(18)
+        view.set_right_margin(18)
+        view.set_top_margin(14)
+        view.set_bottom_margin(14)
+        view.get_style_context().add_class("secondary")
+        self.hardware_view = view
+        scroller.add(view)
+        self.stack.add_titled(scroller, "hardware", "المكونات والعمر")
+
     def _build_json_tab(self) -> None:
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -239,6 +257,7 @@ class InspectorWindow(Gtk.Window):
         self.notes_box.show_all()
         self.timing_label.set_text("زمن الفحص: " + model["timing"])
         self.scope_label.set_text(model["scope"])
+        self.hardware_view.get_buffer().set_text(model.get("extended_hardware", ""))
 
     def _emit(self, kind: str, payload: object) -> None:
         GLib.idle_add(self._receive, kind, payload)

@@ -128,6 +128,81 @@ def smart_text(disks: Any) -> str:
     return "، ".join(dict.fromkeys(states))
 
 
+def extended_hardware_text(data: Any) -> str:
+    """Human-readable summary, without implying that detection proves health."""
+    data = data if isinstance(data, dict) else {}
+    ext = data.get("hardware_extensions")
+    if not isinstance(ext, dict):
+        return "الجرد الموسّع قيد التنفيذ أو غير متاح؛ لا يمكن الحكم على القطع غير المكتشفة."
+    blocks = ["المكوّنات الإضافية — جرد فقط، دون اختبار سلامة أو أداء", ""]
+
+    graphics = ext.get("graphics")
+    blocks.append("الرسوميات GPU")
+    if isinstance(graphics, list) and graphics:
+        for entry in graphics[:8]:
+            if isinstance(entry, dict):
+                name = entry.get("description") or (
+                    str(entry.get("vendor_id") or "?") + ":" + str(entry.get("device_id") or "?")
+                )
+                blocks.append("• " + short(name, 150) + " — تم التعرف عليه؛ الأداء والصحة لم يُختبرا")
+    else:
+        blocks.append("• لم تتوفر بيانات GPU؛ لا يعني ذلك عدم وجوده")
+    blocks.append("")
+
+    displays = ext.get("displays")
+    blocks.append("الشاشة ومخارج العرض")
+    if isinstance(displays, list) and displays:
+        for entry in displays[:12]:
+            if isinstance(entry, dict):
+                modes = entry.get("reported_modes")
+                mode = modes[0] if isinstance(modes, list) and modes else UNKNOWN
+                blocks.append("• " + short(entry.get("connector"), 50) +
+                              " — " + short(entry.get("connection_status"), 20) +
+                              " — وضع معلن: " + short(mode, 28) +
+                              " — لم تُختبر جودة الصورة")
+    else:
+        blocks.append("• لا توجد أوضاع شاشة مقروءة؛ الكشف غير حاسم")
+    blocks.append("")
+
+    networks = ext.get("networks")
+    blocks.append("بطاقات الشبكة")
+    if isinstance(networks, list) and networks:
+        for entry in networks[:16]:
+            if isinstance(entry, dict):
+                kind = "Wi-Fi" if entry.get("kind") == "wifi" else "شبكة سلكية/أخرى"
+                blocks.append("• " + short(entry.get("interface"), 45) + " — " + kind +
+                              " — لم يُختبر الاتصال")
+    else:
+        blocks.append("• لم يُكتشف محول شبكة معرّف؛ قد تكون البيانات غير متاحة")
+
+    blocks.extend(["", "العمر وساعات التشغيل — أدلة لا تقدير لعمر الجهاز"])
+    ages = data.get("age_evidence")
+    if not isinstance(ages, list):
+        blocks.append("• الأدلة الزمنية قيد الجمع")
+    elif not ages:
+        blocks.append("• لا توجد مصادر عمر أو ساعات تشغيل موثوقة")
+    else:
+        for entry in ages[:24]:
+            if not isinstance(entry, dict):
+                continue
+            kind, val = entry.get("kind"), entry.get("value")
+            if kind == "powered_hours":
+                blocks.append("• ساعات تشغيل القرص " +
+                              short(entry.get("path"), 45) + ": " +
+                              short(val, 24) +
+                              " ساعة تراكمية؛ لا تعني عمر الحاسوب")
+            elif kind == "firmware_date":
+                blocks.append("• تاريخ BIOS الخام: " + short(val, 30) +
+                              " — تاريخ البرنامج الثابت لا تاريخ تصنيع الحاسوب")
+            elif kind == "edid_panel_date" and isinstance(val, dict):
+                blocks.append("• تاريخ شاشة EDID: أسبوع " +
+                              short(val.get("week"), 5) + " من " +
+                              short(val.get("year"), 5) +
+                              " — ليس تاريخ تصنيع الجهاز")
+    blocks.extend(["", "النتيجة: اكتشاف العتاد لا يُعد فحص صحة؛ الاختبارات المتقدمة اختيارية."])
+    return "\n".join(blocks)
+
+
 def dashboard_model(
     data: dict[str, Any] | None,
     *,
@@ -206,4 +281,5 @@ def dashboard_model(
         "timing": timing,
         "created": date_ar(data.get("created_utc")) if complete else "",
         "scope": "تقييم L1 أولي؛ لا يثبت سلامة الجهاز أو السعر أو الضمان.",
+        "extended_hardware": extended_hardware_text(data),
     }

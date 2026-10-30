@@ -274,6 +274,7 @@ def collect(progress: Callable[[dict[str, Any]], None] | None = None) -> dict[st
             "battery": report.get("battery"),
             "storage": storage,
             "disk_probe_error": report.get("disk_probe_error"),
+            "hardware_extensions": report.get("hardware_extensions"),
         }
         progress({"type": "progress", "stage": stage, "message": message,
                   "elapsed_seconds": stage_seconds[stage], "snapshot": snapshot})
@@ -288,17 +289,22 @@ def collect(progress: Callable[[dict[str, Any]], None] | None = None) -> dict[st
     disks, disk_error = list_internal_disks()
     report["storage"] = disks
     report["disk_probe_error"] = disk_error
-    publish("storage", "اكتمل حصر الأقراص؛ فحص SMART قيد التنفيذ.")
+    from .hardware_evidence import collect_extensions, age_evidence
+    report["hardware_extensions"] = collect_extensions()
+    publish("storage", "اكتمل جرد الأقراص والرسوميات والشاشة والشبكات؛ SMART قيد التنفيذ.")
     for disk in disks:
         disk["smart"] = smart_summary(disk["path"])
         publish("smart", "وصلت نتيجة SMART للقرص " + str(disk["path"]))
+    report["age_evidence"] = age_evidence(report)
     report["tool_availability"] = {
         tool: shutil.which(tool) is not None
-        for tool in ("lsblk", "smartctl", "dmidecode")
+        for tool in ("lsblk", "smartctl", "dmidecode", "lspci")
     }
     report["disclaimer"] = (
         "Only a preliminary inventory. No stress test, complete RAM test, "
-        "malware check, or BIOS integrity proof was performed."
+        "malware check, or BIOS integrity proof was performed. "
+        "Hardware detection and power-on hours do not prove component health "
+        "or the computer's manufacture date."
     )
     report["findings"] = build_findings(report)
     from .assessment import assess

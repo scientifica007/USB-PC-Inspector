@@ -49,8 +49,10 @@ stack, scrolledwindow { background: transparent; }
 def label(text: str, style: str | None = None, *, wrap: bool = False) -> Gtk.Label:
     widget = Gtk.Label(label=text)
     widget.set_direction(Gtk.TextDirection.RTL)
-    widget.set_xalign(1.0)
-    widget.set_justify(Gtk.Justification.RIGHT)
+    # GTK mirrors GtkLabel:xalign for RTL: 0.0 is the physical RIGHT.
+    # xalign=1.0 previously put all labels on the physical left.
+    widget.set_xalign(0.0)
+    widget.set_justify(Gtk.Justification.LEFT)
     widget.set_yalign(0.5)
     widget.set_selectable(False)
     widget.set_hexpand(True)
@@ -60,6 +62,19 @@ def label(text: str, style: str | None = None, *, wrap: bool = False) -> Gtk.Lab
     if style:
         widget.get_style_context().add_class(style)
     return widget
+
+
+def rtl_paragraphs(text: str) -> str:
+    """Fix paragraph auto-direction in mixed Arabic/ASCII GTK TextViews.
+
+    Pango picks direction separately for each paragraph. For RTL base
+    paragraphs, Gtk.Justification.LEFT maps to physical-right alignment.
+    Prefixing one invisible RLM forces ASCII-only component names, Arabic
+    comments and mixed lines to share the same base direction. This is
+    display-only: the JSON, HTML and original evidence stay untouched.
+    """
+    return "\\n".join("\\u200f" + line.lstrip() if line.strip() else ""
+                     for line in text.split("\\n"))
 
 
 class InspectorWindow(Gtk.Window):
@@ -190,7 +205,9 @@ class InspectorWindow(Gtk.Window):
         view.set_cursor_visible(False)
         view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         view.set_direction(Gtk.TextDirection.RTL)
-        view.set_justification(Gtk.Justification.RIGHT)
+        # With RTL paragraph direction, LEFT is visually right-justified
+        # (GTK/Pango mirrors the low-level Pango alignment).
+        view.set_justification(Gtk.Justification.LEFT)
         view.set_left_margin(18)
         view.set_right_margin(18)
         view.set_top_margin(14)
@@ -212,7 +229,7 @@ class InspectorWindow(Gtk.Window):
             view.set_cursor_visible(False)
             view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
             view.set_direction(Gtk.TextDirection.RTL)
-            view.set_justification(Gtk.Justification.RIGHT)
+            view.set_justification(Gtk.Justification.LEFT)
             view.set_left_margin(18)
             view.set_right_margin(18)
             view.set_top_margin(14)
@@ -285,9 +302,9 @@ class InspectorWindow(Gtk.Window):
         self.notes_box.show_all()
         self.timing_label.set_text("زمن الفحص: " + model["timing"])
         self.scope_label.set_text(model["scope"])
-        self.hardware_view.get_buffer().set_text(model.get("extended_hardware", ""))
-        self.health_view.get_buffer().set_text(model.get("health_panel", ""))
-        self.suitability_view.get_buffer().set_text(model.get("suitability_panel", ""))
+        self.hardware_view.get_buffer().set_text(rtl_paragraphs(model.get("extended_hardware", "")))
+        self.health_view.get_buffer().set_text(rtl_paragraphs(model.get("health_panel", "")))
+        self.suitability_view.get_buffer().set_text(rtl_paragraphs(model.get("suitability_panel", "")))
 
     def _emit(self, kind: str, payload: object) -> None:
         GLib.idle_add(self._receive, kind, payload)

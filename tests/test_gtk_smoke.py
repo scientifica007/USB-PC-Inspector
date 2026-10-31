@@ -28,13 +28,26 @@ class GtkSmokeTests(unittest.TestCase):
             self.assertEqual(win.json_view.get_justification(), Gtk.Justification.LEFT)
             for view in (win.hardware_view, win.health_view, win.suitability_view):
                 self.assertEqual(view.get_direction(), Gtk.TextDirection.RTL)
-                self.assertEqual(view.get_justification(), Gtk.Justification.RIGHT)
-            self.assertEqual(win.decision_reason.get_justify(), Gtk.Justification.RIGHT)
+                self.assertEqual(view.get_justification(), Gtk.Justification.LEFT)
+            self.assertEqual(win.decision_reason.get_xalign(), 0.0)
+            self.assertEqual(win.decision_reason.get_justify(), Gtk.Justification.LEFT)
+            self.assertEqual(win.fact_labels[0].get_xalign(), 0.0)
+            # GtkLabel:xalign is mirrored in RTL. 0.0 is physical RIGHT.
             self.assertIn("لا قرار", win.decision_title.get_text())
             self.assertFalse(win.save_button.get_sensitive())
             self.assertFalse(win.copy_button.get_sensitive())
         finally:
             win.destroy()
+
+    def test_mixed_arabic_english_paragraphs_share_rtl_base(self):
+        raw = "اسم القطعة: Intel CPU\n    الحالة: لم تُختبر\nGPU 8086:0046\n"
+        result = gtk_gui.rtl_paragraphs(raw)
+        lines = result.split("\n")
+        self.assertEqual(len(lines), 4)
+        self.assertTrue(all(line.startswith("\u200f") for line in lines[:3]))
+        self.assertTrue(lines[1].endswith("الحالة: لم تُختبر"))
+        self.assertEqual(lines[3], "")
+        self.assertNotIn("\u200f", raw)
 
     def test_completed_report_renders_arabic_verdict(self):
         win = gtk_gui.InspectorWindow()

@@ -1,6 +1,6 @@
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
-**Development source: v0.1.5-beta.1 (P0 extended hardware and qualified age evidence; Python/GTK tests passed, new ISO field verification pending). Last physically field-validated ISO: v0.1.4-beta.1 on HP 630 / Ventoy Legacy BIOS (L1 1.514s collector time, RAM/SMART/HTML and PCINSPDATA recovery with matching SHA-256). UEFI, diskless boot and D/G field safety checks remain untested.**
+**Field-validated ISO: v0.1.5-beta.1 — 31/10/2026, HP 630 on Ventoy 1.1.18 / Legacy BIOS. L1 completed in 2.072s collector time, detected PCI GPU, DRM display, Ethernet/Wi-Fi and evidence-qualified BIOS/drive hours, preserved SMART-failure purchase guidance, saved to PCINSPDATA, and independently recovered JSON/HTML matching complete.json SHA-256. Seven session folders were visible, with only the latest hashes rechecked. UEFI, diskless boot and D/G independent safety tests remain untested. [Field acceptance](docs/FIELD_VALIDATION_2026-10-31_V015.md).**
 
 **New user requirements (30/10/2026):** The planned next milestones cover full hardware identity and age/power-on evidence, per-component health, evidence-based suitability for office/programming/video/gaming, optional purchase profiles, and phone report transfer over Wi-Fi/USB/Bluetooth where supported. These features are specified, **not yet implemented**, in [the product requirements document](docs/PRODUCT_REQUIREMENTS_2026-10-30.md).
 
@@ -11,7 +11,7 @@ The project targets 64-bit Intel/AMD machines first.
 ## Implemented source code
 
 - Read-only BIOS/UEFI, CPU, RAM, battery, internal disks and SMART inventory.
-- **v0.1.5-beta.1 development (not field-validated):** optional read-only PCI GPU, DRM display/EDID and network adapter inventory; BIOS firmware date, drive power-on hours and EDID panel date tracked as **qualified evidence**, not invented computer age. Extra GTK tab and HTML sections. No health certification from detecting a part. [P0 implementation and limitations](docs/IMPLEMENTATION_P0_2026-10-30.md).
+- **v0.1.5-beta.1, P0 field-validated on HP 630 (31/10/2026):** read-only PCI GPU, DRM display/EDID (where available), and network adapter inventory; BIOS firmware date and drive power-on hours tracked as **qualified evidence**, not a fictional computer age. Extra GTK tab and offline HTML sections; no health certification from detecting a part. [P0 implementation](docs/IMPLEMENTATION_P0_2026-10-30.md) and [field results](docs/FIELD_VALIDATION_2026-10-31_V015.md).
 - Staged JSONL events (`--events`): first CPU/BIOS, then RAM, battery, disks and SMART, with in-process elapsed timings. The GUI auto-starts the scan and previews facts without premature purchase decisions.
 - Preliminary evidence-based L1 purchase guidance (do not buy / inspect before payment / undetermined); no health score or price valuation.
 - Explicit "not available / not examined" states; no claim that a computer is

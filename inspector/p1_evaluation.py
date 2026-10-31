@@ -65,9 +65,13 @@ def installed_ram_gb(memory: Any) -> float | None:
         if not match:
             return None
         number = float(match.group(1))
-        if not 0 < number <= 1024:
+        unit = match.group(2).upper()
+        # A real DMI module can report 4096 MB rather than 4 GB.
+        # Bound the capacity in its own units before conversion.
+        upper = 1024 if unit == "GB" else 1024 * 1024
+        if not 0 < number <= upper:
             return None
-        total += number if match.group(2).upper() == "GB" else number / 1024
+        total += number if unit == "GB" else number / 1024
     return round(total, 3)
 
 

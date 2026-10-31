@@ -55,8 +55,9 @@ def installed_ram_gb(memory: Any) -> float | None:
     memory = obj(memory)
     if memory.get("slots_status") != "reported":
         return None
-    slots = list_of_dicts(memory.get("slots"))
-    if not slots:
+    slots = memory.get("slots")
+    if (not isinstance(slots, list) or not slots
+            or any(not isinstance(slot, dict) for slot in slots)):
         return None
     total = 0.0
     for slot in slots:

@@ -48,7 +48,9 @@ stack, scrolledwindow { background: transparent; }
 
 def label(text: str, style: str | None = None, *, wrap: bool = False) -> Gtk.Label:
     widget = Gtk.Label(label=text)
+    widget.set_direction(Gtk.TextDirection.RTL)
     widget.set_xalign(1.0)
+    widget.set_justify(Gtk.Justification.RIGHT)
     widget.set_yalign(0.5)
     widget.set_selectable(False)
     widget.set_hexpand(True)
@@ -115,6 +117,7 @@ class InspectorWindow(Gtk.Window):
 
         self._build_overview()
         self._build_hardware_tab()
+        self._build_health_and_workloads()
         self._build_json_tab()
         self._build_about_tab()
         self._update_dashboard(dashboard_model({}))
@@ -187,6 +190,7 @@ class InspectorWindow(Gtk.Window):
         view.set_cursor_visible(False)
         view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
         view.set_direction(Gtk.TextDirection.RTL)
+        view.set_justification(Gtk.Justification.RIGHT)
         view.set_left_margin(18)
         view.set_right_margin(18)
         view.set_top_margin(14)
@@ -195,6 +199,28 @@ class InspectorWindow(Gtk.Window):
         self.hardware_view = view
         scroller.add(view)
         self.stack.add_titled(scroller, "hardware", "المكونات والعمر")
+
+    def _build_health_and_workloads(self) -> None:
+        """Both analysis tabs are right-justified paragraphs, not merely RTL glyphs."""
+        for tab_id, title, view_name in (
+                ("health", "صحة المكونات", "health_view"),
+                ("workloads", "فيم يصلح؟", "suitability_view")):
+            scroller = Gtk.ScrolledWindow()
+            scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+            view = Gtk.TextView()
+            view.set_editable(False)
+            view.set_cursor_visible(False)
+            view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+            view.set_direction(Gtk.TextDirection.RTL)
+            view.set_justification(Gtk.Justification.RIGHT)
+            view.set_left_margin(18)
+            view.set_right_margin(18)
+            view.set_top_margin(14)
+            view.set_bottom_margin(14)
+            view.get_style_context().add_class("secondary")
+            setattr(self, view_name, view)
+            scroller.add(view)
+            self.stack.add_titled(scroller, tab_id, title)
 
     def _build_json_tab(self) -> None:
         scroller = Gtk.ScrolledWindow()
@@ -205,6 +231,7 @@ class InspectorWindow(Gtk.Window):
         view.set_monospace(True)
         view.set_wrap_mode(Gtk.WrapMode.NONE)
         view.set_direction(Gtk.TextDirection.LTR)
+        view.set_justification(Gtk.Justification.LEFT)
         view.set_left_margin(16)
         view.set_right_margin(16)
         view.set_top_margin(12)
@@ -224,6 +251,7 @@ class InspectorWindow(Gtk.Window):
             "يبدأ الفحص تلقائيًا. النتائج المرحلية للتعريف فقط؛ ولا يظهر قرار الشراء إلا بعد اكتمال الجرد.",
             "يُحفظ التقرير الدائم بصيغتي JSON وHTML مع ملف complete.json للتحقق من SHA-256، على قسم USB خارجي قابل للكتابة موسوم PCINSPDATA أو Ventoy.",
             "إذا فشل الحفظ يبقى التقرير في ذاكرة التطبيق طوال الجلسة ويمكن إعادة محاولة الحفظ دون إعادة الفحص.",
+            "تبويبا صحة المكونات والملاءمة يعرضان أدلة L1 وتقديرات إرشادية مشروطة، وليس اختبارات أداء أو ضمانًا للصحة.",
             "لا يشمل هذا المستوى اختبار إجهاد أو اختبار RAM كاملًا أو فحص الشاشة والمنافذ، ولا يقيّم السعر أو الضمان.",
             "للعرض العربي استخدمت واجهة GTK 3 مع تشكيل الحروف واتجاه RTL؛ صفحة JSON الفنية باتجاه LTR.",
         )
@@ -258,6 +286,8 @@ class InspectorWindow(Gtk.Window):
         self.timing_label.set_text("زمن الفحص: " + model["timing"])
         self.scope_label.set_text(model["scope"])
         self.hardware_view.get_buffer().set_text(model.get("extended_hardware", ""))
+        self.health_view.get_buffer().set_text(model.get("health_panel", ""))
+        self.suitability_view.get_buffer().set_text(model.get("suitability_panel", ""))
 
     def _emit(self, kind: str, payload: object) -> None:
         GLib.idle_add(self._receive, kind, payload)

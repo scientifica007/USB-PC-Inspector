@@ -308,7 +308,12 @@ def collect(progress: Callable[[dict[str, Any]], None] | None = None) -> dict[st
     )
     report["findings"] = build_findings(report)
     from .assessment import assess
+    from .p1_evaluation import health_assessment, suitability_assessment
     report["purchase_assessment"] = assess(report)
+    # The P1 models are non-invasive post-processing only; they never alter
+    # the SMART-based purchase result or generate progressive early verdicts.
+    report["health_assessment"] = health_assessment(report)
+    report["suitability_assessment"] = suitability_assessment(report)
     report["scan_timing"] = {
         "total_seconds": round(time.monotonic() - started, 3),
         "stage_seconds": stage_seconds,

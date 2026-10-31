@@ -113,7 +113,10 @@ def make_html(report: dict[str, Any]) -> str:
             "الناقل": disk.get("transport"),
             "حالة SMART": health_label,
             "اكتمال قراءة SMART": smart.get("status"),
-            "خطأ القراءة": smart.get("read_warning"),
+            "خطأ القراءة": ("لا يوجد فشل قراءة مُبلَّغ عنه"
+                            if smart.get("read_warning") is None
+                            and exit_info.get("read_failure") is False
+                            else smart.get("read_warning")),
             "رمز smartctl": exit_info.get("code"),
             "خطأ تنفيذ/قراءة": exit_info.get("read_failure"),
             "سمات SMART تحت العتبة حاليًا": ", ".join(failed_attributes) or None,
@@ -236,8 +239,52 @@ def make_html(report: dict[str, Any]) -> str:
                 "حدود الاستنتاج": entry.get("limitations"),
             })
 
+    health_html = ""
+    health = report.get("health_assessment")
+    if isinstance(health, dict):
+        health_html = '<section><h2>الحالة الصحية للمكونات — الفحص الأولي</h2>'
+        health_html += '<p>اكتشاف القطعة ليس اختبار صحة. المكوّن غير المختبر لا يُعد سليمًا.</p>'
+        components = health.get("components")
+        if isinstance(components, list):
+            health_html += '<ul class="evidence">'
+            for component in components[:70]:
+                if isinstance(component, dict):
+                    health_html += (
+                        '<li><strong>' + esc(component.get("name")) + '</strong> — '
+                        '<b>' + esc(component.get("label")) + '</b>'
+                        '<p>' + esc(component.get("reason")) + '</p></li>'
+                    )
+            health_html += '</ul>'
+        health_html += '<p>' + esc(health.get("scope")) + '</p></section>'
+
+    suitability_html = ""
+    suitability = report.get("suitability_assessment")
+    if isinstance(suitability, dict):
+        suitability_html = ('<section><h2>ملاءمة الأعمال والاستخدامات</h2>'
+                            '<p>هذه مؤشرات قدرات إرشادية، وليست قياسات FPS أو سرعة '
+                            'تصدير أو ضمانًا لإتمام مهام المستخدم. الحكم على صلاحية '
+                            'الشراء منفصل عن تقدير القدرة النظرية.</p>')
+        workloads = suitability.get("workloads")
+        if isinstance(workloads, list):
+            suitability_html += '<ul class="evidence">'
+            for workload in workloads[:24]:
+                if not isinstance(workload, dict):
+                    continue
+                reasons = workload.get("reasons")
+                reasons = [str(reason) for reason in reasons[:12]] if isinstance(reasons, list) else []
+                details = '؛ '.join(reasons)
+                suitability_html += (
+                    '<li><strong>' + esc(workload.get("name")) + '</strong> — '
+                    '<b>' + esc(workload.get("label")) + '</b>'
+                    '<p>' + esc(workload.get("rule_context")) + '</p>'
+                    '<p>' + esc(details) + '</p></li>'
+                )
+            suitability_html += '</ul>'
+        suitability_html += '<p>' + esc(suitability.get("limitations")) + '</p></section>'
+
     content = (
-        verdict_html + evidence_html + summary_html + extended_html + age_html
+        verdict_html + evidence_html + summary_html + health_html + suitability_html
+        + extended_html + age_html
         + table("النظام والـ BIOS", bios)
         + table("المعالج", cpu)
         + table("الذاكرة", memory_fields)
@@ -249,7 +296,7 @@ def make_html(report: dict[str, Any]) -> str:
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         '<title>USB PC Inspector — تقرير الفحص الأولي</title>'
         '<style>'
-        'body{font:16px/1.75 system-ui,"Noto Sans Arabic",sans-serif;margin:auto;'
+        'body{font:16px/1.75 system-ui,"Noto Sans Arabic",sans-serif;margin:auto;direction:rtl;text-align:right;'
         'max-width:1000px;padding:20px;color:#192b43;background:#f4f6fa}'
         'main{max-width:100%}h1{margin-bottom:4px;font-size:27px}h2{font-size:19px}'
         'section,details{margin:16px 0;background:#fff;padding:16px 20px;'
@@ -279,7 +326,7 @@ def make_html(report: dict[str, Any]) -> str:
         'th{width:38%}}@media print{body{background:#fff}'
         'section,details{break-inside:avoid}details{display:none}}'
         '</style></head><body><main><h1>USB PC Inspector</h1>'
-        '<small>تقرير فحص أولي — الوقت: ' + esc(time_text) + '</small>'
+        '<small>الإصدار: ' + esc(report.get("tool_version")) + ' — الوقت: ' + esc(time_text) + '</small>'
         '<p>القرار مبدئي ومقيد بالأدلة؛ لا يثبت خلو الجهاز من عيوب لم تُفحص.</p>'
         + content + '</main></body></html>'
     )

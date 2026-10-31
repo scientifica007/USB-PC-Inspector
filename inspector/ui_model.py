@@ -203,6 +203,69 @@ def extended_hardware_text(data: Any) -> str:
     return "\n".join(blocks)
 
 
+def health_text(report: Any, *, complete: bool = False) -> str:
+    """Arabic right-aligned panel text, no invented results during L1."""
+    if not complete:
+        return "الفحص جارٍ؛ لا تُعرض أحكام الصحة قبل اكتمال جمع الأدلة."
+    data = report if isinstance(report, dict) else {}
+    assessment = data.get("health_assessment")
+    if not isinstance(assessment, dict):
+        return "لم يُنجز تقييم المكونات في هذا التقرير؛ لا يمكن تأكيد سلامتها."
+    labels = {"critical": "خلل حرج مثبت", "warning": "تحذير",
+              "limited": "مؤشر محدود لا يُثبت السلامة",
+              "not_tested": "مكتشف، لم يُختبر", "unknown": "غير محسوم"}
+    lines = [
+        "صحة المكونات — أدلة الفحص الأولي فقط",
+        "الحالة العامة: " + labels.get(assessment.get("overall"), "غير محسوم"),
+        "ملاحظة: لا يوجد فحص ضغط أو اختبار شامل للقطع.",
+        "",
+    ]
+    components = assessment.get("components")
+    if isinstance(components, list):
+        for item in components[:70]:
+            if not isinstance(item, dict):
+                continue
+            lines.append("◀ " + short(item.get("name"), 135))
+            lines.append("    الحالة: " + labels.get(item.get("status"), "غير محسوم"))
+            lines.append("    " + short(item.get("reason"), 280))
+            lines.append("")
+    lines.append(short(assessment.get("scope"), 400))
+    return "\n".join(lines)
+
+
+def suitability_text(report: Any, *, complete: bool = False) -> str:
+    """Explain performance-estimate conditions without claiming actual benchmarks."""
+    if not complete:
+        return "تظهر الملاءمة التقديرية بعد اكتمال الفحص؛ ليست نتيجة أداء مقاسة."
+    data = report if isinstance(report, dict) else {}
+    analysis = data.get("suitability_assessment")
+    if not isinstance(analysis, dict):
+        return "لا تتوفر بيانات ملاءمة لهذه النسخة من التقرير."
+    labels = {"conditional": "مناسب بشروط",
+              "unsuitable": "دون الحد الإرشادي لهذه المهمة",
+              "undetermined": "الملاءمة غير محسومة"}
+    lines = [
+        "فيم يصلح هذا الحاسوب؟ — تقدير مشروط وليس اختبار أداء",
+        "هذه النتائج مستقلة عن قرار الشراء والحالة الصحية للمكونات.",
+        "",
+    ]
+    workloads = analysis.get("workloads")
+    if isinstance(workloads, list):
+        for item in workloads[:24]:
+            if not isinstance(item, dict):
+                continue
+            lines.append("◀ " + short(item.get("name"), 110))
+            lines.append("    التقدير: " + labels.get(item.get("verdict"), "غير محسوم"))
+            lines.append("    الاستخدام: " + short(item.get("rule_context"), 280))
+            reasons = item.get("reasons")
+            if isinstance(reasons, list):
+                for reason in reasons[:10]:
+                    lines.append("    • " + short(reason, 350))
+            lines.append("")
+    lines.append(short(analysis.get("limitations"), 550))
+    return "\n".join(lines)
+
+
 def dashboard_model(
     data: dict[str, Any] | None,
     *,
@@ -282,4 +345,6 @@ def dashboard_model(
         "created": date_ar(data.get("created_utc")) if complete else "",
         "scope": "تقييم L1 أولي؛ لا يثبت سلامة الجهاز أو السعر أو الضمان.",
         "extended_hardware": extended_hardware_text(data),
+        "health_panel": health_text(data, complete=complete),
+        "suitability_panel": suitability_text(data, complete=complete),
     }

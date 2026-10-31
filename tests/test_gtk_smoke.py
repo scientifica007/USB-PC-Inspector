@@ -25,6 +25,11 @@ class GtkSmokeTests(unittest.TestCase):
         try:
             self.assertEqual(win.get_direction(), Gtk.TextDirection.RTL)
             self.assertEqual(win.json_view.get_direction(), Gtk.TextDirection.LTR)
+            self.assertEqual(win.json_view.get_justification(), Gtk.Justification.LEFT)
+            for view in (win.hardware_view, win.health_view, win.suitability_view):
+                self.assertEqual(view.get_direction(), Gtk.TextDirection.RTL)
+                self.assertEqual(view.get_justification(), Gtk.Justification.RIGHT)
+            self.assertEqual(win.decision_reason.get_justify(), Gtk.Justification.RIGHT)
             self.assertIn("لا قرار", win.decision_title.get_text())
             self.assertFalse(win.save_button.get_sensitive())
             self.assertFalse(win.copy_button.get_sensitive())
@@ -54,6 +59,12 @@ class GtkSmokeTests(unittest.TestCase):
             self.assertEqual(len(win.notes_box.get_children()), 1)
             self.assertIn("8.0 GiB", win.fact_labels[2].get_text())
             self.assertIn("المركبة", win.fact_titles[2].get_text())
+            self.assertIn("لم يُنجز", win.health_view.get_buffer().get_text(
+                win.health_view.get_buffer().get_start_iter(),
+                win.health_view.get_buffer().get_end_iter(), True))
+            self.assertIn("لا تتوفر", win.suitability_view.get_buffer().get_text(
+                win.suitability_view.get_buffer().get_start_iter(),
+                win.suitability_view.get_buffer().get_end_iter(), True))
         finally:
             win.destroy()
 

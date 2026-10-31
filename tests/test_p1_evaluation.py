@@ -130,6 +130,10 @@ class P1EvaluationTests(unittest.TestCase):
             self.assertIsNone(installed_ram_gb({
                 "slots_status": "reported", "slots": [{"size": bad}],
             }))
+        self.assertIsNone(installed_ram_gb({
+            "slots_status": "reported",
+            "slots": [{"size": "4 GB"}, {"unexpected": "record"}, "not-a-dict"],
+        }))
 
     def test_progress_and_old_reports_fail_closed(self):
         report = hp_report()

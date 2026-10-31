@@ -73,8 +73,8 @@ def rtl_paragraphs(text: str) -> str:
     comments and mixed lines to share the same base direction. This is
     display-only: the JSON, HTML and original evidence stay untouched.
     """
-    return "\\n".join("\\u200f" + line.lstrip() if line.strip() else ""
-                     for line in text.split("\\n"))
+    return "\n".join("\u200f" + line.lstrip() if line.strip() else ""
+                     for line in text.split("\n"))
 
 
 class InspectorWindow(Gtk.Window):

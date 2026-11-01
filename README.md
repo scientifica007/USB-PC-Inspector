@@ -2,13 +2,15 @@
 
 **Current field-validated source: v0.1.6-beta.2 — HP 630 / Ventoy / Legacy BIOS, 01/11/2026: visual GTK physical-right RTL PASS in 22 field photos, L1 in 1.704s, P1 health/workload output PASS, recovered JSON/HTML SHA-256 PASS. The prior v0.1.6-beta.1 visually failed RTL; beta.2 corrects it. UEFI, diskless boot and independent D/G no-internal-write tests remain untested. [Field acceptance](docs/FIELD_VALIDATION_2026-11-01_V016B2.md).**
 
-**Product status (01/11/2026):** P0 hardware/qualified-age inventory and P1 evidence-based health/workload assessment have field validation on HP 630. The v0.1.6-beta.2 Arabic GTK RTL fix is now **visually field-accepted** on that device. Optional buyer profiles (P2) and phone transfer (P3/P4) remain **unimplemented**. See [requirements](docs/PRODUCT_REQUIREMENTS_2026-10-30.md), [latest field report](docs/FIELD_VALIDATION_2026-11-01_V016B2.md), and [roadmap](docs/ROADMAP.md).
+**Product status (01/11/2026):** P0 hardware/qualified-age inventory and P1 evidence-based health/workload assessment have field validation on HP 630. The v0.1.6-beta.2 Arabic GTK RTL fix is now **visually field-accepted** on that device. An initial P2 offline profile parser and independent personalized-assessment core is implemented in source, but **P2 is not user-ready**: no GTK editor, import/export UI, or report integration yet. Phone transfer (P3/P4) remains **unimplemented**. [P2 core scope](docs/IMPLEMENTATION_P2_CORE_2026-11-01.md). See [requirements](docs/PRODUCT_REQUIREMENTS_2026-10-30.md), [latest field report](docs/FIELD_VALIDATION_2026-11-01_V016B2.md), and [roadmap](docs/ROADMAP.md).
 
 A portable, Arabic-first, offline diagnostic system designed to boot from USB
 even if the target computer has no internal SSD/HDD or a completely empty disk.
 The project targets 64-bit Intel/AMD machines first.
 
 ## Implemented source code
+
+- **P2 core only (not available in the GUI):** strict optional buyer profile validation and separate five-axis assessment; default no-profile path unchanged. See [implementation scope](docs/IMPLEMENTATION_P2_CORE_2026-11-01.md).
 
 - Read-only BIOS/UEFI, CPU, RAM, battery, internal disks and SMART inventory.
 - **v0.1.6-beta.2 visual RTL PASS on HP 630 (01/11/2026), P1 data/health/workload and report integrity PASS:** report evidence-based per-component health and documented heuristic workload suitability without real FPS/benchmarks; 0.1.6-beta.2 corrects GTK RTL-mirrored xalign and fixes mixed-script paragraph alignment. JSON remains LTR; HTML has RTL/right alignment. [P1 design](docs/IMPLEMENTATION_P1_2026-10-31.md) and [field review](docs/FIELD_VALIDATION_2026-10-31_V016.md).

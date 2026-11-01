@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from typing import Any
 
 from .p1_evaluation import WORKLOADS, installed_ram_gb
@@ -234,10 +235,22 @@ def evaluate_purchase_profile(report: dict, profile: dict | None = None,
     if "model" in claims:
         bios = report.get("bios")
         observed = bios.get("model") if isinstance(bios, dict) else None
-        status = ("needs_verification" if not isinstance(observed, str) or not observed.strip()
-                  else "pass" if observed.strip().casefold() == claims["model"].strip().casefold()
-                  else "fail")
-        cchecks.append(_check("seller_model", status, "مقارنة وصف البائع بهوية DMI."))
+        advertised = claims["model"]
+        def norm(value: str) -> str:
+            return " ".join(re.findall(r"[^\\W_]+", value.casefold(), re.UNICODE))
+        if not isinstance(observed, str) or not observed.strip():
+            status = "needs_verification"
+        else:
+            actual_norm, claim_norm = norm(observed), norm(advertised)
+            if actual_norm and actual_norm == claim_norm:
+                status = "pass"
+            elif (actual_norm.startswith(claim_norm + " ")
+                  or claim_norm.startswith(actual_norm + " ")):
+                status = "needs_verification"
+            else:
+                status = "fail"
+        cchecks.append(_check("seller_model", status,
+                              "المطابقة النصية الجزئية تحتاج تحققًا من الطراز؛ DMI ليس شهادة أصالة."))
     if "ram_gb" in claims:
         cchecks.append(_check("seller_ram_gb",
                               "needs_verification" if ram_gb is None else

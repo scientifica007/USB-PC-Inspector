@@ -13,6 +13,7 @@ from gi.repository import Gdk, GLib, Gtk, Pango
 from .desktop_backend import (list_usb_profiles, load_profile_from_usb,
                               save_profile_to_usb)
 from .p1_evaluation import WORKLOADS
+from .p2_file_import import import_profile_file
 from .p2_presentation import personal_text
 from .p2_profiles import (ProfileError, dump_profile_json, load_profile_json,
                           validate_offer, validate_profile)
@@ -107,14 +108,15 @@ class BuyerProfilePanel(Gtk.Box):
         self.apply_button = Gtk.Button(label="تطبيق المتطلبات")
         self.copy_button = Gtk.Button(label="نسخ ملف JSON")
         self.paste_button = Gtk.Button(label="استيراد JSON من الحافظة")
+        self.import_file_button = Gtk.Button(label="فتح ملف JSON")
         self.save_usb_button = Gtk.Button(label="تصدير الملف إلى USB")
         self.list_usb_button = Gtk.Button(label="عرض ملفات USB")
         self.load_usb_button = Gtk.Button(label="استيراد الملف المحدد")
-        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        actions.set_homogeneous(False)
-        for button in (self.apply_button, self.copy_button, self.paste_button,
-                       self.save_usb_button):
-            actions.pack_start(button, False, False, 0)
+        actions = Gtk.Grid(row_spacing=8, column_spacing=8)
+        for i, button in enumerate((self.apply_button, self.copy_button,
+                                     self.paste_button, self.import_file_button,
+                                     self.save_usb_button)):
+            actions.attach(button, i % 2, i // 2, 1, 1)
         self.editor.pack_start(actions, False, False, 0)
 
         select_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -149,6 +151,7 @@ class BuyerProfilePanel(Gtk.Box):
         self.apply_button.connect("clicked", self.apply)
         self.copy_button.connect("clicked", self.copy_json)
         self.paste_button.connect("clicked", self.paste_json)
+        self.import_file_button.connect("clicked", self.import_file)
         self.save_usb_button.connect("clicked", self.save_usb)
         self.list_usb_button.connect("clicked", self.list_usb)
         self.load_usb_button.connect("clicked", self.load_usb)
@@ -289,6 +292,34 @@ class BuyerProfilePanel(Gtk.Box):
             self._alert("تعذّر الاستيراد", str(exc))
             return
         self.message.set_text("استُورد ملف المتطلبات من الحافظة إلى الذاكرة.")
+
+    def import_file(self, *_args) -> None:
+        dialog = Gtk.FileChooserDialog(
+            title="استيراد ملف متطلبات JSON — قراءة فقط",
+            transient_for=self.get_toplevel(),
+            action=Gtk.FileChooserAction.OPEN,
+        )
+        dialog.add_buttons("إلغاء", Gtk.ResponseType.CANCEL,
+                           "فتح", Gtk.ResponseType.OK)
+        dialog.set_direction(Gtk.TextDirection.RTL)
+        file_filter = Gtk.FileFilter()
+        file_filter.set_name("ملفات JSON")
+        file_filter.add_pattern("*.json")
+        dialog.add_filter(file_filter)
+        selected = None
+        try:
+            if dialog.run() == Gtk.ResponseType.OK:
+                selected = dialog.get_filename()
+        finally:
+            dialog.destroy()
+        if not selected:
+            return
+        try:
+            self._load_fields(import_profile_file(selected))
+        except (OSError, ValueError, TypeError) as exc:
+            self._alert("تعذّر استيراد الملف", str(exc))
+            return
+        self.message.set_text("تم استيراد ملف JSON للذاكرة؛ لم تجرِ كتابة على الأقراص.")
 
     def _job(self, operation: str, arg: Any = None) -> None:
         if self._busy:

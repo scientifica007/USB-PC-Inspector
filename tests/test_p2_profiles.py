@@ -141,5 +141,21 @@ class P2ProfileTests(unittest.TestCase):
         self.assertEqual(report, snap)
 
 
+    def test_short_seller_model_requires_verification_not_false_rejection(self):
+        p = {"profile_schema_version": 1, "name": "Model comparison",
+             "seller_claims": {"model": "HP 630"}}
+        report = sample_report()
+        report["bios"]["model"] = "HP 630 Notebook PC"
+        report["purchase_assessment"]["verdict"] = "inspect_before_payment"
+        report["health_assessment"]["overall"] = "unknown"
+        result = evaluate_purchase_profile(report, p)
+        checks = result["axes"]["seller_claims"]["checks"]
+        self.assertEqual(checks[0]["status"], "needs_verification")
+        p["seller_claims"]["model"] = "HP 650"
+        result2 = evaluate_purchase_profile(report, p)
+        self.assertEqual(result2["axes"]["seller_claims"]["checks"][0]["status"],
+                         "fail")
+
+
 if __name__ == "__main__":
     unittest.main()

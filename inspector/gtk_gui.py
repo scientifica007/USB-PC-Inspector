@@ -244,6 +244,8 @@ class InspectorWindow(Gtk.Window):
 
     def _build_profile_tab(self) -> None:
         scroller = Gtk.ScrolledWindow()
+        # Set the container direction too: child RTL alone is not sufficient.
+        scroller.set_direction(Gtk.TextDirection.RTL)
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self.profile_panel = BuyerProfilePanel(self._sync_personal_json)
         scroller.add(self.profile_panel)

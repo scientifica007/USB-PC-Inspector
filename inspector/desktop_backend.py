@@ -126,6 +126,8 @@ def _profile_call(mode: str, *, profile: dict | None = None,
         process = subprocess.run(argv, input=content, capture_output=True,
                                  text=True, timeout=35, check=False)
         receipt = json.loads(process.stdout)
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError("انتهت مهلة مساعد ملفات المتطلبات على USB.") from exc
     except (ValueError, TypeError) as exc:
         raise RuntimeError("لم يصدر مساعد ملفات المتطلبات جوابًا صالحًا.") from exc
     if (not isinstance(receipt, dict) or receipt.get("ok") is not True

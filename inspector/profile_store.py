@@ -6,6 +6,7 @@ Only USB mounts already verified by usb_store.report_destination() are eligible.
 from __future__ import annotations
 
 import hashlib
+from itertools import islice
 import json
 import os
 from pathlib import Path
@@ -128,7 +129,10 @@ def list_profiles() -> list[dict]:
     result = []
     try:
         # Use only names matching our constrained format; do not follow links.
-        for name in sorted(os.listdir(profilesfd))[:MAX_PROFILES_LISTED * 4]:
+        # Bound directory scanning as well as the returned list (untrusted USB).
+        with os.scandir(profilesfd) as entries:
+            names = [entry.name for entry in islice(entries, MAX_PROFILES_LISTED * 4)]
+        for name in sorted(names):
             if not FILENAME_RE.fullmatch(name):
                 continue
             try:

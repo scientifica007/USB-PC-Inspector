@@ -36,6 +36,8 @@ jobs:
           sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/lightdm/lightdm.conf.d/50-pc-inspector.conf | grep -Fx 'autologin-user=user'
           sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/xdg/openbox/autostart | grep -F 'inspector.gtk_gui'
           sudo unsquashfs -cat live/binary/live/filesystem.squashfs opt/pc-inspector/inspector/gtk_gui.py | grep -F 'class InspectorWindow(Gtk.Window):'
+          sudo unsquashfs -cat live/binary/live/filesystem.squashfs usr/local/bin/pc-inspector-profiles | grep -F 'inspector.profile_store'
+          sudo unsquashfs -cat live/binary/live/filesystem.squashfs etc/sudoers.d/pc-inspector | grep -F '/usr/local/bin/pc-inspector-profiles'
       - name: Generate SHA256 checksum
         run: |
           cd live

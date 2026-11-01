@@ -282,8 +282,56 @@ def make_html(report: dict[str, Any]) -> str:
             suitability_html += '</ul>'
         suitability_html += '<p>' + esc(suitability.get("limitations")) + '</p></section>'
 
+
+    buyer_html = ""
+    buyer = report.get("buyer_profile_assessment")
+    if isinstance(buyer, dict) and buyer.get("mode") == "custom":
+        from .p2_presentation import AXIS_LABELS, STATUS_LABELS, VERDICT_LABELS
+        buyer_html = (
+            '<section><h2>التقييم الشخصي وفق ملف المتطلبات</h2>'
+            '<p>هذا القسم مبني على ملف المستخدم ومدخلات العرض المصرح بها؛ '
+            'ليس فحصًا إضافيًا ولا تحققًا مستقلاً من إعلان البائع أو سعر السوق.</p>'
+            '<p><strong>النتيجة: ' +
+            esc(VERDICT_LABELS.get(buyer.get("personal_verdict"), "غير محسوم")) +
+            '</strong></p>'
+            '<p>الحكم العام L1 لا يتغير: ' + esc(label) + '</p>'
+            '<p>اسم الملف: ' + esc(buyer.get("profile_name")) + '</p>'
+        )
+        raw_axes = buyer.get("axes")
+        if isinstance(raw_axes, dict):
+            buyer_html += '<ul class="evidence">'
+            for axis_key, axis in list(raw_axes.items())[:12]:
+                if not isinstance(axis, dict):
+                    continue
+                buyer_html += (
+                    '<li><strong>' + esc(AXIS_LABELS.get(axis_key, axis_key)) +
+                    '</strong> — ' +
+                    esc(STATUS_LABELS.get(axis.get("status"), "غير محسوم"))
+                )
+                raw_checks = axis.get("checks")
+                if isinstance(raw_checks, list):
+                    buyer_html += '<ul>'
+                    for check in raw_checks[:30]:
+                        if not isinstance(check, dict):
+                            continue
+                        buyer_html += (
+                            '<li>' + esc(check.get("code")) + ': ' +
+                            esc(STATUS_LABELS.get(check.get("status"), "غير محسوم")) +
+                            ' — ' + esc(check.get("reason")) + '</li>'
+                        )
+                    buyer_html += '</ul>'
+                buyer_html += '</li>'
+            buyer_html += '</ul>'
+        offer = obj(report.get("buyer_offer"))
+        if offer:
+            buyer_html += table("مدخلات العرض — تصريح غير متحقق", {
+                "السعر المعروض (دج)": offer.get("asking_price_dzd"),
+                "مدة الضمان المصرح بها (أشهر)": offer.get("warranty_months"),
+            })
+        buyer_html += '</section>'
+
     content = (
-        verdict_html + evidence_html + summary_html + health_html + suitability_html
+        verdict_html + evidence_html + summary_html + buyer_html + health_html + suitability_html
         + extended_html + age_html
         + table("النظام والـ BIOS", bios)
         + table("المعالج", cpu)

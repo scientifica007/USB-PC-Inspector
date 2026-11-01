@@ -1,0 +1,5 @@
+#!/bin/sh
+# Narrow USB-only profile storage; no arbitrary file paths or shell.
+set -eu
+cd /opt/pc-inspector
+exec /usr/bin/python3 -m inspector.profile_store "$@"

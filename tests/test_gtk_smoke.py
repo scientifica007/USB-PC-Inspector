@@ -114,5 +114,56 @@ class GtkSmokeTests(unittest.TestCase):
             win.destroy()
 
 
+    def test_optional_buyer_tab_is_rtl_and_general_mode_is_unmodified(self):
+        win = gtk_gui.InspectorWindow()
+        try:
+            self.assertIsNone(win.profile_panel.profile)
+            self.assertEqual(win.profile_panel.result.get_direction(),
+                             Gtk.TextDirection.RTL)
+            self.assertEqual(win.profile_panel.result.get_justification(),
+                             Gtk.Justification.LEFT)
+            self.assertEqual(win.stack.get_child_by_name("buyer").get_direction(),
+                             Gtk.TextDirection.RTL)
+            raw = {"schema_version": 1, "bios": {"model": "HP 630"},
+                   "purchase_assessment": {"verdict": "do_not_buy"}}
+            win.report = raw
+            self.assertIs(win._report_with_personal_context(), raw)
+            self.assertNotIn("buyer_profile_assessment", raw)
+        finally:
+            win.destroy()
+
+    def test_custom_profile_applies_without_changing_SMART_or_raw_json(self):
+        win = gtk_gui.InspectorWindow()
+        try:
+            raw = {
+                "schema_version": 1,
+                "bios": {"model": "HP 630"},
+                "cpu": {"logical_processors": 4},
+                "memory": {"slots_status": "reported",
+                           "slots": [{"size": "4 GB"}, {"size": "4 GB"}]},
+                "storage": [{"size_bytes": 500107862016, "rotational": True}],
+                "purchase_assessment": {"verdict": "do_not_buy"},
+                "health_assessment": {"overall": "critical"},
+                "suitability_assessment": {"workloads": []},
+            }
+            win.report = raw
+            win.profile_panel.set_report(raw)
+            win.profile_panel.custom_mode.set_active(True)
+            win.profile_panel.fields["name"].set_text("مكتبي")
+            win.profile_panel.fields["min_ram_gb"].set_text("8")
+            win.profile_panel.apply()
+            snapshot = win._report_with_personal_context()
+            self.assertIsNot(snapshot, raw)
+            self.assertEqual(snapshot["purchase_assessment"], raw["purchase_assessment"])
+            self.assertEqual(snapshot["buyer_profile_assessment"]["personal_verdict"],
+                             "reject")
+            self.assertNotIn("buyer_profile_assessment", raw)
+            win.profile_panel.general_mode.set_active(True)
+            self.assertIs(win._report_with_personal_context(), raw)
+        finally:
+            win.destroy()
+
+
+
 if __name__ == "__main__":
     unittest.main()

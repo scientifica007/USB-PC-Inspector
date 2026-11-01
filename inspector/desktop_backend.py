@@ -16,6 +16,7 @@ from typing import Any, Callable
 
 COLLECT_HELPER = "/usr/local/bin/pc-inspector-collect"
 SAVE_HELPER = "/usr/local/bin/pc-inspector-save"
+PROFILE_HELPER = "/usr/local/bin/pc-inspector-profiles"
 MAX_SCANNER_SECONDS = 90
 
 
@@ -103,3 +104,51 @@ def save_to_usb(report: dict[str, Any]) -> dict[str, Any]:
         detail = receipt.get("error") if isinstance(receipt, dict) else None
         raise RuntimeError(str(detail or "لم يكتمل حفظ التقرير على USB."))
     return receipt
+
+
+def _profile_call(mode: str, *, profile: dict | None = None,
+                  filename: str | None = None) -> dict[str, Any]:
+    """Only a fixed helper and a fixed operation; never accept a filesystem path."""
+    from .p2_profiles import dump_profile_json, ProfileError
+    from .profile_store import FILENAME_RE
+    if mode not in ("save", "list", "load"):
+        raise ValueError("Unsupported profile operation.")
+    if mode == "load" and (not isinstance(filename, str)
+                           or not FILENAME_RE.fullmatch(filename)):
+        raise ProfileError("Invalid profile identifier.")
+    if not os.path.isfile(PROFILE_HELPER):
+        raise RuntimeError("مساعد ملفات المتطلبات على USB غير متاح في هذه الصورة.")
+    argv = ["sudo", "-n", PROFILE_HELPER, mode]
+    if mode == "load":
+        argv.append(filename)
+    content = dump_profile_json(profile) if mode == "save" else ""
+    try:
+        process = subprocess.run(argv, input=content, capture_output=True,
+                                 text=True, timeout=35, check=False)
+        receipt = json.loads(process.stdout)
+    except subprocess.TimeoutExpired as exc:
+        raise TimeoutError("انتهت مهلة مساعد ملفات المتطلبات على USB.") from exc
+    except (ValueError, TypeError) as exc:
+        raise RuntimeError("لم يصدر مساعد ملفات المتطلبات جوابًا صالحًا.") from exc
+    if (not isinstance(receipt, dict) or receipt.get("ok") is not True
+            or process.returncode != 0):
+        reason = receipt.get("error") if isinstance(receipt, dict) else None
+        raise RuntimeError(str(reason or "تعذّر الوصول إلى ملفات المتطلبات على USB."))
+    return receipt
+
+
+def save_profile_to_usb(profile: dict) -> dict:
+    return _profile_call("save", profile=profile)
+
+
+def list_usb_profiles() -> list[dict]:
+    value = _profile_call("list").get("profiles")
+    if not isinstance(value, list):
+        raise RuntimeError("قائمة ملفات المتطلبات غير صالحة.")
+    return value
+
+
+def load_profile_from_usb(filename: str) -> dict:
+    from .p2_profiles import validate_profile
+    payload = _profile_call("load", filename=filename).get("profile")
+    return validate_profile(payload)

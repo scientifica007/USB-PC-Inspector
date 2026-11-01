@@ -17,6 +17,8 @@ from gi.repository import Gdk, GLib, Gtk, Pango  # noqa: E402
 from . import __version__
 from .desktop_backend import collect_l1, save_to_usb
 from .ui_model import dashboard_model
+from .p2_gtk_panel import BuyerProfilePanel
+from .p2_presentation import make_personal_snapshot
 
 STYLESHEET = """
 window { background: #f4f6fa; color: #1d2939; font-family: "Noto Sans Arabic", "Noto Naskh Arabic", sans-serif; }
@@ -133,6 +135,7 @@ class InspectorWindow(Gtk.Window):
         self._build_overview()
         self._build_hardware_tab()
         self._build_health_and_workloads()
+        self._build_profile_tab()
         self._build_json_tab()
         self._build_about_tab()
         self._update_dashboard(dashboard_model({}))
@@ -239,6 +242,31 @@ class InspectorWindow(Gtk.Window):
             scroller.add(view)
             self.stack.add_titled(scroller, tab_id, title)
 
+    def _build_profile_tab(self) -> None:
+        scroller = Gtk.ScrolledWindow()
+        # Set the container direction too: child RTL alone is not sufficient.
+        scroller.set_direction(Gtk.TextDirection.RTL)
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.profile_panel = BuyerProfilePanel(self._sync_personal_json)
+        scroller.add(self.profile_panel)
+        self.stack.add_titled(scroller, "buyer", "متطلباتي")
+
+    def _report_with_personal_context(self) -> dict | None:
+        if self.report is None:
+            return None
+        return make_personal_snapshot(self.report,
+                                      self.profile_panel.profile,
+                                      self.profile_panel.offer)
+
+    def _sync_personal_json(self) -> None:
+        # BuyerProfilePanel can signal during its own initialization.
+        if not hasattr(self, "profile_panel") or not hasattr(self, "json_view"):
+            return
+        export = self._report_with_personal_context()
+        if export is not None:
+            self.json_view.get_buffer().set_text(
+                json.dumps(export, ensure_ascii=False, indent=2))
+
     def _build_json_tab(self) -> None:
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -269,7 +297,8 @@ class InspectorWindow(Gtk.Window):
             "يُحفظ التقرير الدائم بصيغتي JSON وHTML مع ملف complete.json للتحقق من SHA-256، على قسم USB خارجي قابل للكتابة موسوم PCINSPDATA أو Ventoy.",
             "إذا فشل الحفظ يبقى التقرير في ذاكرة التطبيق طوال الجلسة ويمكن إعادة محاولة الحفظ دون إعادة الفحص.",
             "تبويبا صحة المكونات والملاءمة يعرضان أدلة L1 وتقديرات إرشادية مشروطة، وليس اختبارات أداء أو ضمانًا للصحة.",
-            "لا يشمل هذا المستوى اختبار إجهاد أو اختبار RAM كاملًا أو فحص الشاشة والمنافذ، ولا يقيّم السعر أو الضمان.",
+            "لا يشمل هذا المستوى اختبار إجهاد أو اختبار RAM كاملًا أو فحص الشاشة والمنافذ؛ أسعار البائع والضمان مدخلات مستخدم اختيارية وليست قياسات تلقائية.",
+            "تبويب متطلباتي اختياري. يمكن حفظ ملف متطلبات منفصل على قسم USB الموثوق؛ وفي الوضع المخصص يرفق التقرير المصدّر تقييمًا شخصيًا دون تعديل الحقائق الخام.",
             "للعرض العربي استخدمت واجهة GTK 3 مع تشكيل الحروف واتجاه RTL؛ صفحة JSON الفنية باتجاه LTR.",
         )
         for item in about_lines:
@@ -314,6 +343,7 @@ class InspectorWindow(Gtk.Window):
             return False
         self.scanning = True
         self.report = None
+        self.profile_panel.set_report(None)
         self.scan_button.set_sensitive(False)
         self.save_button.set_sensitive(False)
         self.copy_button.set_sensitive(False)
@@ -349,9 +379,8 @@ class InspectorWindow(Gtk.Window):
             self.save_button.set_sensitive(True)
             self.copy_button.set_sensitive(True)
             self._update_dashboard(dashboard_model(report, complete=True, reduced=reduced))
-            self.json_view.get_buffer().set_text(json.dumps(
-                report, ensure_ascii=False, indent=2
-            ))
+            self.profile_panel.set_report(report)
+            self._sync_personal_json()
         elif kind == "saved":
             self.saving = False
             self.scan_button.set_sensitive(True)
@@ -395,7 +424,7 @@ class InspectorWindow(Gtk.Window):
     def save(self, *_args) -> None:
         if self.report is None or self.scanning or self.saving:
             return
-        report = self.report
+        report = self._report_with_personal_context()
         self.saving = True
         self.save_button.set_sensitive(False)
         self.scan_button.set_sensitive(False)
@@ -413,7 +442,7 @@ class InspectorWindow(Gtk.Window):
         if self.report is None:
             return
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-        clipboard.set_text(json.dumps(self.report, ensure_ascii=False, indent=2), -1)
+        clipboard.set_text(json.dumps(self._report_with_personal_context(), ensure_ascii=False, indent=2), -1)
         clipboard.store()
         self.status.set_text("نُسخ JSON إلى الحافظة؛ لم يُحفظ ملف دائم بهذه العملية.")
 

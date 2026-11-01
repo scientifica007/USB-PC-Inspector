@@ -24,3 +24,4 @@ jobs:
           bash -n scripts/build_iso.sh
           sh -n bin/pc-inspector-collect
           sh -n bin/pc-inspector-save
+          sh -n bin/pc-inspector-profiles

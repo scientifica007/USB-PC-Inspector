@@ -5,9 +5,11 @@ No new tests run at application startup; L1 remains independent and fast.
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 import threading
 
-from gi.repository import Gdk, GLib, Gtk, Pango
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
 
 from .diagnostics import run_level, MANUAL_TESTS
 from .phone_bridge import PhoneBridge
@@ -164,6 +166,8 @@ class PhonePanel(Gtk.Box):
         self.state = _label("الخدمة متوقفة؛ لا توجد منافذ شبكة مفتوحة من التطبيق.")
         self.fingerprint = _label("")
         self.pack_start(self.state, False, False, 0)
+        self.qr_image = Gtk.Image()
+        self.pack_start(self.qr_image, False, False, 0)
         self.pack_start(self.fingerprint, False, False, 0)
         self.url = ""
 
@@ -181,6 +185,18 @@ class PhonePanel(Gtk.Box):
         self.bridge = candidate
         self.url = details["url"]
         self.state.set_text("الرابط على الهاتف:\n" + self.url)
+        if shutil.which("qrencode"):
+            try:
+                rendered = subprocess.run(
+                    ["qrencode", "-t", "PNG", "-o", "-", "-s", "4", self.url],
+                    capture_output=True, check=False, timeout=5)
+                if rendered.returncode == 0:
+                    loader = GdkPixbuf.PixbufLoader.new_with_type("png")
+                    loader.write(rendered.stdout)
+                    loader.close()
+                    self.qr_image.set_from_pixbuf(loader.get_pixbuf())
+            except (OSError, ValueError, GLib.Error, subprocess.TimeoutExpired):
+                pass  # The textual URL remains usable without QR support.
         self.fingerprint.set_text(
             "بصمة شهادة TLS (SHA-256): " + details["certificate_sha256"] +
             "\nلا تقبل تحذير الشهادة إلا بعد التأكد من مطابقة البصمة؛ "
@@ -199,6 +215,7 @@ class PhonePanel(Gtk.Box):
             self.bridge.stop()
             self.bridge = None
         self.url = ""
+        self.qr_image.clear()
         self.state.set_text("أُغلقت خدمة الهاتف وأُبطل رمز الاقتران.")
         self.fingerprint.set_text("")
         self.start_button.set_sensitive(True)

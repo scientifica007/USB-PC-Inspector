@@ -176,7 +176,8 @@ class PhoneBridge:
         try:
             created = subprocess.run(
                 ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
-                 "-sha256", "-days", "1", "-subj", "/CN=PC-Inspector-Local",
+                 "-sha256", "-days", "1", "-subj", "/CN=" + addresses[0],
+                 "-addext", "subjectAltName=IP:" + addresses[0],
                  "-keyout", str(key), "-out", str(cert)],
                 capture_output=True, timeout=20, check=False)
             if created.returncode:

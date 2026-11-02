@@ -256,8 +256,12 @@ def evaluate_purchase_profile(report: dict, profile: dict | None = None,
                 status = "needs_verification"
             else:
                 status = "fail"
-        cchecks.append(_check("seller_model", status,
-                              "المطابقة النصية الجزئية تحتاج تحققًا من الطراز؛ DMI ليس شهادة أصالة."))
+        reason = {
+            "pass": "تطابق نصي للتسمية فقط؛ DMI ليس شهادة أصالة.",
+            "needs_verification": "اسم مختصر أو تنسيق مختلف؛ يلزم التحقق من الطراز قبل الحسم.",
+            "fail": "تسمية البائع تختلف عن هوية DMI؛ يلزم التحقق من الإعلان.",
+        }[status]
+        cchecks.append(_check("seller_model", status, reason))
     if "ram_gb" in claims:
         cchecks.append(_check("seller_ram_gb",
                               "needs_verification" if ram_gb is None else

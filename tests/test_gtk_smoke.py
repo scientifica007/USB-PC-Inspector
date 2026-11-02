@@ -168,6 +168,7 @@ class GtkSmokeTests(unittest.TestCase):
     def test_v020_optional_levels_and_phone_off_at_start(self):
         win = gtk_gui.InspectorWindow()
         try:
+            self.assertEqual(win.sidebar.get_direction(), Gtk.TextDirection.RTL)
             self.assertIsNotNone(win.stack.get_child_by_name("diagnostics"))
             self.assertIsNotNone(win.stack.get_child_by_name("phone"))
             self.assertEqual(win.phone_panel.url, "")

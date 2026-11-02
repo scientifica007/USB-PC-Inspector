@@ -1,4 +1,5 @@
 """Phone HTTPS bridge: never opens by default, token-gated, TLS-only."""
+import hashlib
 import json
 import ssl
 import unittest
@@ -41,9 +42,21 @@ class PhoneTests(unittest.TestCase):
             base = data["url"].split("/?", 1)[0]
             with urlopen(base + "/api/report?token=" + bridge.token,
                          context=context, timeout=5) as response:
-                parsed = json.loads(response.read())
+                raw_json = response.read()
+                parsed = json.loads(raw_json)
                 self.assertEqual(parsed["bios"]["model"], "HP 630")
                 self.assertEqual(response.headers["Cache-Control"], "no-store")
+            with urlopen(base + "/api/report-html?token=" + bridge.token,
+                         context=context, timeout=5) as response:
+                raw_html = response.read()
+                self.assertIn(b"USB PC Inspector", raw_html)
+            with urlopen(base + "/api/complete?token=" + bridge.token,
+                         context=context, timeout=5) as response:
+                manifest = json.loads(response.read())
+                self.assertEqual(manifest["files"]["report.json"]["sha256"],
+                                 hashlib.sha256(raw_json).hexdigest())
+                self.assertEqual(manifest["files"]["report.html"]["sha256"],
+                                 hashlib.sha256(raw_html).hexdigest())
             with self.assertRaises(HTTPError) as err:
                 urlopen(base + "/api/report?token=wrong", context=context, timeout=5)
             self.assertEqual(err.exception.code, 403)

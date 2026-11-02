@@ -49,6 +49,9 @@ def _cpu(cancel: threading.Event, *, seconds: float, on_tick=None) -> dict:
     """Bounded reproducible SHA-256 workload; not a CPU defect certification."""
     start = time.monotonic()
     target = min(max(float(seconds), 0.05), MAX_L3_SECONDS)
+    if target > 60 and _temperature()["max_c"] is None:
+        return {"status": "unavailable", "reason":
+                "يُرفض ضغط طويل لأن قراءة الحرارة غير متاحة؛ استعمل اختبارًا أقصر."}
     known = hashlib.sha256(b"abc").hexdigest()
     if known != ("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"):
         return {"status": "fail", "reason": "مرجع SHA-256 غير صحيح"}

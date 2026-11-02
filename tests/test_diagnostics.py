@@ -36,6 +36,12 @@ class Tests(unittest.TestCase):
         self.assertTrue(all(x["status"] == "not_tested" for x in result["manual_tests"]))
         self.assertNotIn("overall_health_percent", result)
 
+    def test_long_run_denied_without_thermal_sensor(self):
+        with patch.object(diag, "_temperature", return_value={"status": "unknown", "max_c": None}):
+            result = diag._cpu(threading.Event(), seconds=120)
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIn("الحرارة", result["reason"])
+
     def test_thermal_cutoff_stops_workload(self):
         with patch.object(diag, "_temperature", return_value={"max_c": 91.0}):
             result = diag._cpu(threading.Event(), seconds=3.0)

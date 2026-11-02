@@ -128,10 +128,17 @@ class InspectorWindow(Gtk.Window):
         self.stack = Gtk.Stack()
         self.stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
         self.stack.set_transition_duration(120)
-        switcher = Gtk.StackSwitcher()
-        switcher.set_stack(self.stack)
-        main.pack_start(switcher, False, False, 0)
-        main.pack_start(self.stack, True, True, 0)
+        # A permanent RTL sidebar scales to 9+ tabs and avoids forcing
+        # the window wider than smaller laptop screens.
+        body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        body.set_direction(Gtk.TextDirection.RTL)
+        self.sidebar = Gtk.StackSidebar()
+        self.sidebar.set_direction(Gtk.TextDirection.RTL)
+        self.sidebar.set_stack(self.stack)
+        self.sidebar.set_size_request(170, -1)
+        body.pack_start(self.sidebar, False, False, 0)
+        body.pack_start(self.stack, True, True, 0)
+        main.pack_start(body, True, True, 0)
 
         self._build_overview()
         self._build_hardware_tab()

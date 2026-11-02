@@ -267,7 +267,8 @@ class InspectorWindow(Gtk.Window):
         return view
 
     def _build_diagnostics_tab(self) -> None:
-        self.diagnostics_panel = DiagnosticsPanel(lambda: self.report)
+        self.diagnostics_panel = DiagnosticsPanel(
+            lambda: self.report, lambda: (self.phone_panel.refresh(), self._sync_personal_json()))
         self.stack.add_titled(self.diagnostics_panel, "diagnostics", "فحص L2 / L3")
 
     def _build_phone_tab(self) -> None:

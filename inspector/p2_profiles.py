@@ -237,7 +237,7 @@ def evaluate_purchase_profile(report: dict, profile: dict | None = None,
         observed = bios.get("model") if isinstance(bios, dict) else None
         advertised = claims["model"]
         def norm(value: str) -> str:
-            return " ".join(re.findall(r"[^\\W_]+", value.casefold(), re.UNICODE))
+            return " ".join(re.findall(r"[^\W_]+", value.casefold(), re.UNICODE))
         if not isinstance(observed, str) or not observed.strip():
             status = "needs_verification"
         else:
@@ -247,10 +247,21 @@ def evaluate_purchase_profile(report: dict, profile: dict | None = None,
             elif (actual_norm.startswith(claim_norm + " ")
                   or claim_norm.startswith(actual_norm + " ")):
                 status = "needs_verification"
+            elif (actual_norm.replace(" ", "").startswith(
+                      claim_norm.replace(" ", ""))
+                  or claim_norm.replace(" ", "").startswith(
+                      actual_norm.replace(" ", ""))):
+                # Seller may omit whitespace: "hp630" vs "HP 630 Notebook PC".
+                # This is NOT proof of an exact match: request verification.
+                status = "needs_verification"
             else:
                 status = "fail"
-        cchecks.append(_check("seller_model", status,
-                              "المطابقة النصية الجزئية تحتاج تحققًا من الطراز؛ DMI ليس شهادة أصالة."))
+        reason = {
+            "pass": "تطابق نصي للتسمية فقط؛ DMI ليس شهادة أصالة.",
+            "needs_verification": "اسم مختصر أو تنسيق مختلف؛ يلزم التحقق من الطراز قبل الحسم.",
+            "fail": "تسمية البائع تختلف عن هوية DMI؛ يلزم التحقق من الإعلان.",
+        }[status]
+        cchecks.append(_check("seller_model", status, reason))
     if "ram_gb" in claims:
         cchecks.append(_check("seller_ram_gb",
                               "needs_verification" if ram_gb is None else

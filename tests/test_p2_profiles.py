@@ -151,6 +151,18 @@ class P2ProfileTests(unittest.TestCase):
         result = evaluate_purchase_profile(report, p)
         checks = result["axes"]["seller_claims"]["checks"]
         self.assertEqual(checks[0]["status"], "needs_verification")
+        # 02/11/2026 HP 630 field report: user supplied "hp630" without space.
+        p["seller_claims"]["model"] = "hp630"
+        compact = evaluate_purchase_profile(report, p)
+        self.assertEqual(compact["axes"]["seller_claims"]["checks"][0]["status"],
+                         "needs_verification")
+        p["seller_claims"]["model"] = "HP-630"
+        hyphenated = evaluate_purchase_profile(report, p)
+        self.assertEqual(hyphenated["axes"]["seller_claims"]["checks"][0]["status"],
+                         "needs_verification")
+        p["seller_claims"]["model"] = "HP 630 Notebook PC"
+        exact = evaluate_purchase_profile(report, p)
+        self.assertEqual(exact["axes"]["seller_claims"]["checks"][0]["status"], "pass")
         p["seller_claims"]["model"] = "HP 650"
         result2 = evaluate_purchase_profile(report, p)
         self.assertEqual(result2["axes"]["seller_claims"]["checks"][0]["status"],

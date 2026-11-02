@@ -165,5 +165,31 @@ class GtkSmokeTests(unittest.TestCase):
 
 
 
+    def test_v020_optional_levels_and_phone_off_at_start(self):
+        win = gtk_gui.InspectorWindow()
+        try:
+            self.assertIsNotNone(win.stack.get_child_by_name("diagnostics"))
+            self.assertIsNotNone(win.stack.get_child_by_name("phone"))
+            self.assertEqual(win.phone_panel.url, "")
+            self.assertIsNone(win.phone_panel.bridge)
+            self.assertFalse(win.diagnostics_panel.sessions)
+            self.assertFalse(win.diagnostics_panel.stop_button.get_sensitive())
+            win.diagnostics_panel.start_level("L2")
+            self.assertIn("أكمل L1", win.diagnostics_panel.status.get_text())
+        finally:
+            win.destroy()
+
+    def test_interactive_check_window_is_non_destructive_at_start(self):
+        from inspector.interactive_gtk_tests import ComponentCheckWindow
+        win = ComponentCheckWindow()
+        try:
+            self.assertEqual(len(win.notebook.get_children()), 5)
+            self.assertEqual(win._keys, set())
+            self.assertEqual(win._pointer_clicks, 0)
+            self.assertIsNone(win._camera)
+        finally:
+            win.destroy()
+
+
 if __name__ == "__main__":
     unittest.main()

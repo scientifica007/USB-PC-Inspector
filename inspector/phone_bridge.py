@@ -84,7 +84,7 @@ def _handler_factory(bridge: "PhoneBridge"):
                     self._reply(404, b"Report not ready", "text/plain; charset=utf-8")
                     return
                 from .report import make_html
-                raw_json = json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8")
+                raw_json = (json.dumps(report, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
                 raw_html = make_html(report).encode("utf-8")
                 if parsed.path == "/api/report":
                     self._reply(200, raw_json, "application/json; charset=utf-8",

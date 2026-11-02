@@ -21,3 +21,6 @@ sudo
 ca-certificates
 exfatprogs
 dosfstools
+
+iproute2
+openssl

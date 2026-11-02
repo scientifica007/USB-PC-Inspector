@@ -16,7 +16,7 @@ from typing import Callable
 
 LEVELS = ("L2", "L3")
 TEMPERATURE_STOP_C = 85.0
-MAX_L3_SECONDS = 90
+MAX_L3_SECONDS = 1800
 MANUAL_TESTS = (
     ("display", "الشاشة: افتح صور ألوان كاملة وتحقق من البكسلات والإضاءة"),
     ("keyboard", "لوحة المفاتيح: اضغط جميع المفاتيح بما فيها F والأرقام"),
@@ -45,7 +45,7 @@ def _temperature() -> dict:
             "readings_c": values}
 
 
-def _cpu(cancel: threading.Event, *, seconds: float) -> dict:
+def _cpu(cancel: threading.Event, *, seconds: float, on_tick=None) -> dict:
     """Bounded reproducible SHA-256 workload; not a CPU defect certification."""
     start = time.monotonic()
     target = min(max(float(seconds), 0.05), MAX_L3_SECONDS)
@@ -53,6 +53,7 @@ def _cpu(cancel: threading.Event, *, seconds: float) -> dict:
     if known != ("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"):
         return {"status": "fail", "reason": "مرجع SHA-256 غير صحيح"}
     iterations = 0
+    last_tick = start
     block = b"PCInspector-L2-L3" * 4096
     while time.monotonic() - start < target:
         if cancel.is_set():
@@ -65,6 +66,12 @@ def _cpu(cancel: threading.Event, *, seconds: float) -> dict:
             if thermal["max_c"] is not None and thermal["max_c"] >= TEMPERATURE_STOP_C:
                 return {"status": "stopped_heat", "iterations": iterations,
                         "max_temperature_c": thermal["max_c"]}
+            now = time.monotonic()
+            if on_tick is not None and now - last_tick >= 1:
+                on_tick({"elapsed_seconds": round(now-start, 1),
+                         "target_seconds": target,
+                         "thermal_max_c": thermal["max_c"]})
+                last_tick = now
     return {"status": "pass_limited", "iterations": iterations,
             "duration_seconds": round(time.monotonic()-start, 3),
             "limitation": "اجتاز الحساب المحدود، لا يثبت الاستقرار طويل المدى"}
@@ -122,8 +129,12 @@ def run_level(level: str, progress: Callable[[dict], None] | None = None,
     tasks = [
         ("peripherals", lambda: _peripheral_inventory()),
         ("temperature_before", _temperature),
-        ("cpu", lambda: _cpu(cancel, seconds=cpu_seconds if cpu_seconds is not None
-                             else (1.0 if level == "L2" else 25.0))),
+        ("cpu", lambda: _cpu(
+            cancel,
+            seconds=cpu_seconds if cpu_seconds is not None
+                    else (1.0 if level == "L2" else 900.0),
+            on_tick=(lambda data: progress({"level": level, "step": "cpu_progress",
+                                           "result": data}) if progress else None))),
         ("memory", lambda: _ram(cancel, 16 if level == "L2" else 64)),
         ("temperature_after", _temperature),
     ]

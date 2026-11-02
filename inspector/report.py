@@ -280,7 +280,14 @@ def make_html(report: dict[str, Any]) -> str:
                     '<p>' + esc(details) + '</p></li>'
                 )
             suitability_html += '</ul>'
-        suitability_html += '<p>' + esc(suitability.get("limitations")) + '</p></section>'
+        suitability_limitations = suitability.get("limitations")
+        if isinstance(report.get("buyer_profile_assessment"), dict) and isinstance(suitability_limitations, str):
+            # P1 raw evidence stays untouched. This is presentation-only
+            # clarification when the distinct P2 buyer section was evaluated.
+            suitability_limitations = suitability_limitations.replace(
+                "تقييم سعر الجهاز والضمان والملف الشخصي غير منفذ.",
+                "تقييم البيانات التي قدّمها المشتري موجود في قسم مستقل؛ لا يتضمن تقييم سعر السوق.")
+        suitability_html += '<p>' + esc(suitability_limitations) + '</p></section>'
 
 
     buyer_html = ""

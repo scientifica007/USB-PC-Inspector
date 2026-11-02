@@ -247,6 +247,13 @@ def evaluate_purchase_profile(report: dict, profile: dict | None = None,
             elif (actual_norm.startswith(claim_norm + " ")
                   or claim_norm.startswith(actual_norm + " ")):
                 status = "needs_verification"
+            elif (actual_norm.replace(" ", "").startswith(
+                      claim_norm.replace(" ", ""))
+                  or claim_norm.replace(" ", "").startswith(
+                      actual_norm.replace(" ", ""))):
+                # Seller may omit whitespace: "hp630" vs "HP 630 Notebook PC".
+                # This is NOT proof of an exact match: request verification.
+                status = "needs_verification"
             else:
                 status = "fail"
         cchecks.append(_check("seller_model", status,

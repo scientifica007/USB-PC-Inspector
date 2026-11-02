@@ -11,6 +11,7 @@ from gi.repository import Gdk, GLib, Gtk, Pango
 
 from .diagnostics import run_level, MANUAL_TESTS
 from .phone_bridge import PhoneBridge
+from .interactive_gtk_tests import ComponentCheckWindow
 
 
 def _label(value: str) -> Gtk.Label:
@@ -42,7 +43,9 @@ class DiagnosticsPanel(Gtk.Box):
         self.l2.connect("clicked", lambda *_: self.start_level("L2"))
         self.l3.connect("clicked", lambda *_: self.start_level("L3"))
         self.stop_button.connect("clicked", self.stop)
-        for button in (self.l2, self.l3, self.stop_button):
+        self.interactive_button = Gtk.Button(label="اختبار القطع تفاعليًا")
+        self.interactive_button.connect("clicked", self.open_interactive)
+        for button in (self.l2, self.l3, self.stop_button, self.interactive_button):
             row.pack_start(button, False, False, 0)
         self.pack_start(row, False, False, 0)
         self.status = _label("لا توجد اختبارات إضافية بعد.")
@@ -122,6 +125,18 @@ class DiagnosticsPanel(Gtk.Box):
     def stop(self, *_args) -> None:
         self.cancel.set()
         self.status.set_text("طُلب إلغاء الاختبار، يجري إنهاء المرحلة الحالية.")
+
+    def open_interactive(self, *_args) -> None:
+        window = ComponentCheckWindow(self._interactive_result)
+        window.set_transient_for(self.get_toplevel())
+        window.show_all()
+
+    def _interactive_result(self, session: dict) -> None:
+        self.sessions.append(session)
+        self.status.set_text("حُفظت نتائج اختبار المكونات التفاعلي المحدود في الجلسة.")
+        self.result.get_buffer().set_text(json.dumps(session, ensure_ascii=False, indent=2))
+        if self._on_complete is not None:
+            self._on_complete()
 
 
 class PhonePanel(Gtk.Box):

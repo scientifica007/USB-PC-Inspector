@@ -23,11 +23,12 @@ def _label(value: str) -> Gtk.Label:
 
 
 class DiagnosticsPanel(Gtk.Box):
-    def __init__(self, get_report):
+    def __init__(self, get_report, on_complete=None):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.set_direction(Gtk.TextDirection.RTL)
         self.set_border_width(14)
         self._get_report = get_report
+        self._on_complete = on_complete
         self.cancel = threading.Event()
         self._working = False
         self.sessions: list[dict] = []
@@ -111,6 +112,8 @@ class DiagnosticsPanel(Gtk.Box):
             self.status.set_text("فشل تنفيذ الفحص: " + error[:200])
         elif session is not None:
             self.sessions.append(session)
+            if self._on_complete is not None:
+                self._on_complete()
             self.status.set_text("انتهى " + session["level"] + " — " + session["status"])
             self.result.get_buffer().set_text(
                 json.dumps(session, ensure_ascii=False, indent=2))

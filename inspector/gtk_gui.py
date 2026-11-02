@@ -19,6 +19,7 @@ from .desktop_backend import collect_l1, save_to_usb
 from .ui_model import dashboard_model
 from .p2_gtk_panel import BuyerProfilePanel
 from .p2_presentation import make_personal_snapshot
+from .extra_gtk_panel import DiagnosticsPanel, PhonePanel
 
 STYLESHEET = """
 window { background: #f4f6fa; color: #1d2939; font-family: "Noto Sans Arabic", "Noto Naskh Arabic", sans-serif; }
@@ -136,6 +137,8 @@ class InspectorWindow(Gtk.Window):
         self._build_hardware_tab()
         self._build_health_and_workloads()
         self._build_profile_tab()
+        self._build_diagnostics_tab()
+        self._build_phone_tab()
         self._build_json_tab()
         self._build_about_tab()
         self._update_dashboard(dashboard_model({}))
@@ -254,9 +257,27 @@ class InspectorWindow(Gtk.Window):
     def _report_with_personal_context(self) -> dict | None:
         if self.report is None:
             return None
-        return make_personal_snapshot(self.report,
+        view = make_personal_snapshot(self.report,
                                       self.profile_panel.profile,
                                       self.profile_panel.offer)
+        if self.diagnostics_panel.sessions:
+            from copy import deepcopy
+            view = deepcopy(view)
+            view["diagnostic_sessions"] = deepcopy(self.diagnostics_panel.sessions)
+        return view
+
+    def _build_diagnostics_tab(self) -> None:
+        self.diagnostics_panel = DiagnosticsPanel(lambda: self.report)
+        self.stack.add_titled(self.diagnostics_panel, "diagnostics", "فحص L2 / L3")
+
+    def _build_phone_tab(self) -> None:
+        self.phone_panel = PhonePanel(self._report_with_personal_context,
+                                     lambda: self.diagnostics_panel.sessions)
+        self.stack.add_titled(self.phone_panel, "phone", "الهاتف")
+        self.connect("destroy", self._close_phone_service)
+
+    def _close_phone_service(self, *_args) -> None:
+        self.phone_panel.stop()
 
     def _sync_personal_json(self) -> None:
         # BuyerProfilePanel can signal during its own initialization.
@@ -343,7 +364,9 @@ class InspectorWindow(Gtk.Window):
             return False
         self.scanning = True
         self.report = None
+        self.diagnostics_panel.sessions.clear()
         self.profile_panel.set_report(None)
+        self.phone_panel.refresh()
         self.scan_button.set_sensitive(False)
         self.save_button.set_sensitive(False)
         self.copy_button.set_sensitive(False)
@@ -381,6 +404,7 @@ class InspectorWindow(Gtk.Window):
             self._update_dashboard(dashboard_model(report, complete=True, reduced=reduced))
             self.profile_panel.set_report(report)
             self._sync_personal_json()
+            self.phone_panel.refresh()
         elif kind == "saved":
             self.saving = False
             self.scan_button.set_sensitive(True)
@@ -425,6 +449,7 @@ class InspectorWindow(Gtk.Window):
         if self.report is None or self.scanning or self.saving:
             return
         report = self._report_with_personal_context()
+        self.phone_panel.refresh()
         self.saving = True
         self.save_button.set_sensitive(False)
         self.scan_button.set_sensitive(False)

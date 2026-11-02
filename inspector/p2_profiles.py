@@ -237,7 +237,7 @@ def evaluate_purchase_profile(report: dict, profile: dict | None = None,
         observed = bios.get("model") if isinstance(bios, dict) else None
         advertised = claims["model"]
         def norm(value: str) -> str:
-            return " ".join(re.findall(r"[^\\W_]+", value.casefold(), re.UNICODE))
+            return " ".join(re.findall(r"[^\W_]+", value.casefold(), re.UNICODE))
         if not isinstance(observed, str) or not observed.strip():
             status = "needs_verification"
         else:

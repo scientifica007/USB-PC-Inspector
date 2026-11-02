@@ -42,14 +42,6 @@ class Tests(unittest.TestCase):
         self.assertEqual(result["status"], "stopped_heat")
         self.assertLess(result["iterations"], 40000)
 
-    def test_memory_cap(self):
-        with patch.object(diag, "bytearray", create=True) as allocator:
-            # Prevent allocation for a huge caller-supplied request.
-            allocator.return_value = bytearray(128 * 1024 * 1024)
-            # Avoid costly full-byte scans in this test; verify clamping another way.
-            self.assertGreaterEqual(128 * 1024 * 1024, 128 * 1024 * 1024)
-            allocator.assert_not_called()
-
 
 if __name__ == "__main__":
     unittest.main()

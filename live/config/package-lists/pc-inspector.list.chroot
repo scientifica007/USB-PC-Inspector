@@ -24,3 +24,7 @@ dosfstools
 
 iproute2
 openssl
+alsa-utils
+gstreamer1.0-tools
+gstreamer1.0-plugins-good
+qrencode

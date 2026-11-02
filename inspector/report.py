@@ -330,8 +330,26 @@ def make_html(report: dict[str, Any]) -> str:
             })
         buyer_html += '</section>'
 
+    diagnostic_html = ""
+    sessions = report.get("diagnostic_sessions")
+    if isinstance(sessions, list) and sessions:
+        diagnostic_html = '<section><h2>الفحوص الإضافية L2 / L3 / التفاعلية</h2>'
+        diagnostic_html += '<p>هذه نتائج اختبارات محدودة لا تُثبت سلامة جميع القطع؛ لا تغير حكم L1.</p>'
+        for session in sessions:
+            if not isinstance(session, dict):
+                continue
+            diagnostic_html += '<h3>' + esc(session.get("level")) + ' — ' + esc(session.get("status")) + '</h3>'
+            diagnostics = obj(session.get("results"))
+            diagnostic_html += '<ul class="evidence">'
+            for ident, measurement in diagnostics.items():
+                info = obj(measurement)
+                diagnostic_html += '<li><strong>' + esc(ident) + '</strong> — ' + esc(info.get("status"))
+                diagnostic_html += '<span class="code">' + esc(info) + '</span></li>'
+            diagnostic_html += '</ul><p>' + esc(session.get("limitations")) + '</p>'
+        diagnostic_html += '</section>'
+
     content = (
-        verdict_html + evidence_html + summary_html + buyer_html + health_html + suitability_html
+        verdict_html + evidence_html + summary_html + buyer_html + diagnostic_html + health_html + suitability_html
         + extended_html + age_html
         + table("النظام والـ BIOS", bios)
         + table("المعالج", cpu)

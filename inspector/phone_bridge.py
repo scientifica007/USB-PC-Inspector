@@ -77,15 +77,30 @@ def _handler_factory(bridge: "PhoneBridge"):
             if not secrets.compare_digest(credential, bridge.token):
                 self._reply(403, b"Forbidden", "text/plain; charset=utf-8")
                 return
-            if parsed.path == "/api/report":
+            if parsed.path in ("/api/report", "/api/report-html", "/api/complete"):
                 with bridge._lock:
                     report = bridge.report
                 if report is None:
                     self._reply(404, b"Report not ready", "text/plain; charset=utf-8")
                     return
-                data = json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8")
-                self._reply(200, data, "application/json; charset=utf-8",
-                            "pc-inspector-report.json")
+                from .report import make_html
+                raw_json = json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8")
+                raw_html = make_html(report).encode("utf-8")
+                if parsed.path == "/api/report":
+                    self._reply(200, raw_json, "application/json; charset=utf-8",
+                                "report.json")
+                elif parsed.path == "/api/report-html":
+                    self._reply(200, raw_html, "text/html; charset=utf-8",
+                                "report.html")
+                else:
+                    manifest = {"complete": True, "files": {
+                        "report.json": {"bytes": len(raw_json),
+                                        "sha256": hashlib.sha256(raw_json).hexdigest()},
+                        "report.html": {"bytes": len(raw_html),
+                                        "sha256": hashlib.sha256(raw_html).hexdigest()},
+                    }}
+                    self._reply(200, json.dumps(manifest).encode("utf-8"),
+                                "application/json; charset=utf-8", "complete.json")
             elif parsed.path == "/api/session":
                 with bridge._lock:
                     data = {"has_report": bridge.report is not None,
@@ -102,6 +117,8 @@ def _handler_factory(bridge: "PhoneBridge"):
                 status = ("، ".join(x.get("level", "?") + ": " + x.get("status", "")
                           for x in diagnostics) or "لم ينفذ فحص إضافي")
                 link = "/api/report?token=" + bridge.token
+                html_link = "/api/report-html?token=" + bridge.token
+                verify_link = "/api/complete?token=" + bridge.token
                 page = (
                     '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8">'
                     '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -114,7 +131,10 @@ def _handler_factory(bridge: "PhoneBridge"):
                     html.escape(str(verdict)) + '</p></section><section><h2>الفحوص الإضافية</h2><p>' +
                     html.escape(status) + '</p></section><section>'
                     '<a href="' + html.escape(link, quote=True) + '">تنزيل التقرير JSON</a>'
-                    '<p>يمكن تحديث الصفحة لمشاهدة أحدث النتائج. الاتصال محلي ومؤقت.</p>'
+                    ' | <a href="' + html.escape(html_link, quote=True) + '">تقرير HTML</a>'
+                    ' | <a href="' + html.escape(verify_link, quote=True) + '">بصمات SHA-256</a>'
+                    '<p>نزّل الملفات من الجلسة نفسها، ثم قارِن بصماتها بملف complete.json.'
+                    ' يمكن تحديث الصفحة لمشاهدة أحدث النتائج. الاتصال محلي ومؤقت.</p>'
                     '</section></html>')
                 self._reply(200, page.encode("utf-8"), "text/html; charset=utf-8")
             else:

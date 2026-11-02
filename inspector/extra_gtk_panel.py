@@ -50,6 +50,12 @@ class DiagnosticsPanel(Gtk.Box):
         for button in (self.l2, self.l3, self.stop_button, self.interactive_button):
             row.pack_start(button, False, False, 0)
         self.pack_start(row, False, False, 0)
+        duration_row = Gtk.Box(spacing=8)
+        duration_row.pack_start(_label("مدة اختبار CPU في L3 (بالدقائق):"), False, False, 0)
+        self.deep_minutes = Gtk.SpinButton.new_with_range(1, 30, 1)
+        self.deep_minutes.set_value(15)
+        duration_row.pack_start(self.deep_minutes, False, False, 0)
+        self.pack_start(duration_row, False, False, 0)
         self.status = _label("لا توجد اختبارات إضافية بعد.")
         self.pack_start(self.status, False, False, 0)
         guide = Gtk.Expander(label="اختبارات تفاعلية مطلوبة لبعض القطع (لم تُنفذ)")
@@ -81,8 +87,9 @@ class DiagnosticsPanel(Gtk.Box):
                 buttons=Gtk.ButtonsType.YES_NO,
                 text="تأكيد الفحص المعمق L3")
             dialog.format_secondary_text(
-                "اختبار CPU محدود الحمل (25 ثانية تقريبًا) و64 MiB RAM؛ "
-                "لا اختبار كتابة على القرص. قد ترتفع الحرارة؛ يمكنك الإلغاء.")
+                "اختبار CPU لمدة " + str(int(self.deep_minutes.get_value()))
+                + " دقيقة و64 MiB RAM؛ لا اختبار كتابة على القرص. "
+                "قد ترتفع الحرارة؛ يمكنك الإلغاء.")
             accepted = dialog.run() == Gtk.ResponseType.YES
             dialog.destroy()
             if not accepted:
@@ -93,17 +100,19 @@ class DiagnosticsPanel(Gtk.Box):
         self.l3.set_sensitive(False)
         self.stop_button.set_sensitive(True)
         self.status.set_text("بدأ " + level + " — تظهر خطوات التنفيذ هنا.")
-        threading.Thread(target=self._worker, args=(level, self.cancel),
+        seconds = float(self.deep_minutes.get_value()) * 60 if level == "L3" else 1.0
+        threading.Thread(target=self._worker, args=(level, self.cancel, seconds),
                          daemon=True).start()
 
-    def _worker(self, level: str, cancel: threading.Event) -> None:
+    def _worker(self, level: str, cancel: threading.Event, seconds: float) -> None:
         try:
             session = run_level(
                 level,
                 progress=lambda item: GLib.idle_add(
                     self.status.set_text, level + ": " + item["step"]
-                    + " — " + item["result"].get("status", "?")),
-                cancel=cancel)
+                    + " — " + str(item["result"].get("status",
+                                        item["result"].get("elapsed_seconds", "?")))),
+                cancel=cancel, cpu_seconds=seconds)
             GLib.idle_add(self._complete, session, None)
         except Exception as exc:
             GLib.idle_add(self._complete, None, str(exc))

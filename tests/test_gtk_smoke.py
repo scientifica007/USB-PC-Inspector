@@ -180,6 +180,31 @@ class GtkSmokeTests(unittest.TestCase):
         finally:
             win.destroy()
 
+    def test_l2_health_summary_updates_without_changing_original_smart_verdict(self):
+        win = gtk_gui.InspectorWindow()
+        try:
+            raw = {"schema_version": 1,
+                   "cpu": {"model": "i3"}, "memory": {"total_bytes": 8192},
+                   "purchase_assessment": {"verdict": "do_not_buy", "reason": "SMART failed"},
+                   "health_assessment": {"overall": "critical"}}
+            win.report = raw
+            win._update_dashboard(gtk_gui.dashboard_model(raw, complete=True))
+            win.diagnostics_panel.sessions.append({
+                "level": "L3", "status": "complete",
+                "results": {"cpu": {"status": "pass_limited", "duration_seconds": 120},
+                            "memory": {"status": "pass_limited", "tested_mib": 64}}})
+            win._on_diagnostic_complete()
+            content = win.health_view.get_buffer().get_text(
+                win.health_view.get_buffer().get_start_iter(),
+                win.health_view.get_buffer().get_end_iter(), True)
+            self.assertIn("اجتاز اختبارًا محدودًا", content)
+            self.assertIn("تقييم L1 الأساسي", content)
+            self.assertEqual(win._report_with_personal_context()["diagnostic_review"]["session_count"], 1)
+            self.assertNotIn("diagnostic_review", raw)
+            self.assertEqual(raw["purchase_assessment"]["verdict"], "do_not_buy")
+        finally:
+            win.destroy()
+
     def test_explicit_human_component_feedback_and_escape_capture(self):
         from types import SimpleNamespace
         from gi.repository import Gdk

@@ -30,6 +30,22 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn("SMART failure", output)
         self.assertEqual(report["purchase_assessment"]["verdict"], "do_not_buy")
 
+    def test_human_review_is_html_escaped(self):
+        from inspector.diagnostic_evidence import build_diagnostic_review
+        report = {"schema_version": 1, "tool_version": "0.2.1-beta.1",
+                  "bios": {"model": "HP630"},
+                  "purchase_assessment": {"verdict": "do_not_buy"}}
+        sessions = [{"level": "interactive",
+                     "results": {"screen": {"status": "user_review_required"}},
+                     "user_verdicts": {"screen": {"status": "fail",
+                                                 "note": "<script>bad()</script>"}}}]
+        report["diagnostic_sessions"] = sessions
+        report["diagnostic_review"] = build_diagnostic_review(report, sessions)
+        html = make_html(report)
+        self.assertIn("سُجلت مشكلة", html)
+        self.assertIn("&lt;script&gt;bad()&lt;/script&gt;", html)
+        self.assertNotIn("<script>bad()</script>", html)
+
     def test_general_mode_without_profile_preserves_raw(self):
         raw = {"schema_version": 1, "purchase_assessment": {"verdict": "do_not_buy"}}
         self.assertIs(make_personal_snapshot(raw, None), raw)

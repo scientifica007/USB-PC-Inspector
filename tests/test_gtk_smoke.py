@@ -180,6 +180,25 @@ class GtkSmokeTests(unittest.TestCase):
         finally:
             win.destroy()
 
+    def test_explicit_human_component_feedback_and_escape_capture(self):
+        from types import SimpleNamespace
+        from gi.repository import Gdk
+        from inspector.interactive_gtk_tests import ComponentCheckWindow
+        captured = []
+        win = ComponentCheckWindow(captured.append)
+        try:
+            self.assertEqual(win._reviews["screen"][0].get_active_id(), "not_tested")
+            win._reviews["screen"][0].set_active_id("fail")
+            win._reviews["screen"][1].set_text("الألوان غير ظاهرة")
+            win._keypress(win, SimpleNamespace(keyval=Gdk.KEY_Escape))
+            self.assertIn(Gdk.KEY_Escape, win._keys)
+            win._finish()
+            self.assertEqual(captured[0]["user_verdicts"]["screen"]["status"], "fail")
+            self.assertIn("Escape", win.key_label.get_text())
+        finally:
+            if win.get_visible():
+                win.destroy()
+
     def test_interactive_check_window_is_non_destructive_at_start(self):
         from inspector.interactive_gtk_tests import ComponentCheckWindow
         win = ComponentCheckWindow()

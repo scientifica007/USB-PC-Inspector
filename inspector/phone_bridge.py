@@ -12,12 +12,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import ipaddress
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import socket
 import ssl
 import subprocess
 import tempfile
+import time
 import threading
 from urllib.parse import parse_qs, urlsplit
 
@@ -32,6 +34,8 @@ def local_ipv4() -> list[str]:
     except (OSError, ValueError, subprocess.TimeoutExpired):
         interfaces = []
     addresses = []
+    # Prefer the phone's USB subnet over unrelated private Wi-Fi/LAN.
+    interfaces.sort(key=lambda item: 0 if is_usb_network(str(item.get("ifname", ""))) else 1)
     for interface in interfaces:
         for addr in interface.get("addr_info", []):
             value = addr.get("local")
@@ -42,6 +46,55 @@ def local_ipv4() -> list[str]:
             except ValueError:
                 continue
     return list(dict.fromkeys(addresses))
+
+
+def is_usb_network(name: str) -> bool:
+    """Require a real USB sysfs path, not just an interface label."""
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,32}", name):
+        return False
+    path = os.path.realpath("/sys/class/net/" + name)
+    return path.startswith("/sys/devices/") and "/usb" in path.lower()
+
+
+def usb_network_interfaces() -> list[str]:
+    """Discover USB Ethernet candidates, without changing Wi-Fi or disks."""
+    try:
+        result = subprocess.run(["ip", "-j", "link", "show"],
+                                capture_output=True, text=True, timeout=3,
+                                check=False)
+        interfaces = json.loads(result.stdout) if result.returncode == 0 else []
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return []
+    if not isinstance(interfaces, list):
+        return []
+    return [name for entry in interfaces if isinstance(entry, dict)
+            for name in [str(entry.get("ifname", ""))] if is_usb_network(name)]
+
+
+def activate_usb_tethering() -> str:
+    """User-initiated, non-root NetworkManager DHCP attempt on USB only."""
+    names = usb_network_interfaces()
+    if not names:
+        return "لم تظهر واجهة شبكة USB من الهاتف."
+    if not shutil_which_nmcli():
+        return "واجهة USB موجودة لكن NetworkManager غير متوفر لعنوان IPv4."
+    problems = []
+    for name in names[:4]:
+        try:
+            result = subprocess.run(
+                ["nmcli", "--wait", "15", "device", "connect", name],
+                capture_output=True, text=True, timeout=19, check=False)
+            if result.returncode == 0:
+                return "اكتملت محاولة تهيئة عنوان IP لواجهة " + name
+            problems.append(name + ": " + result.stderr.strip()[-120:])
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            problems.append(name + ": " + type(exc).__name__)
+    return "واجهة USB مكتشفة لكن DHCP لم يكتمل: " + "; ".join(problems)
+
+
+def shutil_which_nmcli() -> bool:
+    from shutil import which
+    return which("nmcli") is not None
 
 
 def _handler_factory(bridge: "PhoneBridge"):
@@ -168,7 +221,15 @@ class PhoneBridge:
             raise RuntimeError("خدمة الهاتف تعمل بالفعل.")
         addresses = local_ipv4()
         if not addresses:
-            raise RuntimeError("لم يُكتشف عنوان شبكة خاصة؛ فعّل نقطة اتصال الهاتف أو USB tethering.")
+            detail = activate_usb_tethering()
+            for _ in range(6):
+                addresses = local_ipv4()
+                if addresses:
+                    break
+                time.sleep(0.5)
+            if not addresses:
+                raise RuntimeError("لم يُكتشف IPv4 خاص بعد محاولة الاتصال. " + detail
+                                   + " تحقق من تفعيل USB tethering واتصال الكابل.")
         if not shutil_which_openssl():
             raise RuntimeError("أداة openssl غير موجودة؛ يرفض التطبيق الاتصال دون TLS.")
         directory = tempfile.TemporaryDirectory(prefix="pcinsp-phone-")

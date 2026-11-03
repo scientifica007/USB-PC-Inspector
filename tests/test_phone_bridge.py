@@ -8,6 +8,7 @@ from urllib.request import urlopen
 from unittest.mock import patch
 
 from inspector.phone_bridge import PhoneBridge
+from inspector import phone_bridge
 
 
 class PhoneTests(unittest.TestCase):
@@ -28,6 +29,26 @@ class PhoneTests(unittest.TestCase):
         with patch("inspector.phone_bridge.local_ipv4", return_value=[]):
             with self.assertRaisesRegex(RuntimeError, "شبكة"):
                 bridge.start()
+
+    def test_usb_tether_activation_is_restricted_to_usb_interface(self):
+        with patch.object(phone_bridge, "usb_network_interfaces", return_value=[]):
+            with patch.object(phone_bridge.subprocess, "run") as runner:
+                detail = phone_bridge.activate_usb_tethering()
+                runner.assert_not_called()
+                self.assertIn("USB", detail)
+
+    def test_dhcp_attempt_can_supply_missing_private_ipv4(self):
+        bridge = PhoneBridge()
+        with patch.object(phone_bridge, "local_ipv4",
+                          side_effect=[[], ["127.0.0.1"]]):
+            with patch.object(phone_bridge, "activate_usb_tethering",
+                              return_value="DHCP completed") as activate:
+                data = bridge.start()
+                activate.assert_called_once()
+        try:
+            self.assertIn("127.0.0.1", data["url"])
+        finally:
+            bridge.stop()
 
     def test_tls_http_readonly_and_token_denial(self):
         bridge = PhoneBridge()

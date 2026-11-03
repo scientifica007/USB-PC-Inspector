@@ -1,6 +1,8 @@
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
-**Development candidate 0.2.0-beta.1 (not yet field-validated):** L1 unchanged, optional L2/L3 with bounded CPU/RAM/thermal tests, user-guided screen/input/audio/camera checks and explicit temporary TLS local phone dashboard with QR + verified JSON/HTML exports. No finished Android APK, full GPU/VRAM certification, or remote mobile control. [Actual scope and limits](docs/IMPLEMENTATION_020_MULTI_LEVEL_PHONE.md).
+**Latest development candidate 0.2.1-beta.1 (not field-validated):** Field repairs on 03/11/2026: conservative derived L2/L3 health, human verdicts, fullscreen screen colours, keyboard, adjustable digital audio, camera errors/X11 sink, USB tether DHCP via NetworkManager, CPU thermal peak, UTC session timestamps and duplicate-save warning. Original L1/SMART verdict unchanged. See [scope and field acceptance](docs/IMPLEMENTATION_021_FIELD_FIXES_2026-11-03.md).
+
+**Earlier candidate 0.2.0-beta.1 (field problems documented):** L1 unchanged, optional L2/L3 with bounded CPU/RAM/thermal tests, user-guided screen/input/audio/camera checks and explicit temporary TLS local phone dashboard with QR + verified JSON/HTML exports. No finished Android APK, full GPU/VRAM certification, or remote mobile control. [Actual scope and limits](docs/IMPLEMENTATION_020_MULTI_LEVEL_PHONE.md).
 
 **Current field-validated source: v0.1.6-beta.2 — HP 630 / Ventoy / Legacy BIOS, 01/11/2026: visual GTK physical-right RTL PASS in 22 field photos, L1 in 1.704s, P1 health/workload output PASS, recovered JSON/HTML SHA-256 PASS. The prior v0.1.6-beta.1 visually failed RTL; beta.2 corrects it. UEFI, diskless boot and independent D/G no-internal-write tests remain untested. [Field acceptance](docs/FIELD_VALIDATION_2026-11-01_V016B2.md).**
 
@@ -98,3 +100,8 @@ Do not change seller-owned firmware settings without permission. Shut down
 cleanly before removing the USB.
 
 License and third-party distribution terms will be settled before release.
+
+
+### 0.2.1-beta.1 validation gate
+
+CI and ISO build alone do not approve a release: test the repaired UI and tethering with the real HP 630 and Android device. Android APK and comprehensive GPU/VRAM/DIMM tests remain unimplemented. See [field protocol](docs/IMPLEMENTATION_021_FIELD_FIXES_2026-11-03.md).

@@ -8,6 +8,7 @@ a certificate that every physical component is healthy.
 from __future__ import annotations
 
 import glob
+from datetime import datetime, timezone
 import hashlib
 import os
 import time
@@ -57,26 +58,36 @@ def _cpu(cancel: threading.Event, *, seconds: float, on_tick=None) -> dict:
         return {"status": "fail", "reason": "مرجع SHA-256 غير صحيح"}
     iterations = 0
     last_tick = start
+    peak = None
     block = b"PCInspector-L2-L3" * 4096
     while time.monotonic() - start < target:
         if cancel.is_set():
-            return {"status": "cancelled", "iterations": iterations}
+            return {"status": "cancelled", "iterations": iterations,
+                    "max_temperature_c": peak}
         for _ in range(32):
             hashlib.sha256(block).digest()
         iterations += 32
         if iterations % 256 == 0:
             thermal = _temperature()
-            if thermal["max_c"] is not None and thermal["max_c"] >= TEMPERATURE_STOP_C:
+            value = thermal.get("max_c")
+            if value is not None:
+                peak = value if peak is None else max(peak, value)
+            if value is None and target > 60:
+                return {"status": "temperature_monitor_lost",
+                        "reason": "انقطعت قراءة الحرارة؛ أوقف اختبار الضغط احترازيًا.",
+                        "iterations": iterations, "max_temperature_c": peak}
+            if value is not None and value >= TEMPERATURE_STOP_C:
                 return {"status": "stopped_heat", "iterations": iterations,
-                        "max_temperature_c": thermal["max_c"]}
+                        "max_temperature_c": peak}
             now = time.monotonic()
             if on_tick is not None and now - last_tick >= 1:
                 on_tick({"elapsed_seconds": round(now-start, 1),
                          "target_seconds": target,
-                         "thermal_max_c": thermal["max_c"]})
+                         "thermal_max_c": value, "thermal_peak_c": peak})
                 last_tick = now
     return {"status": "pass_limited", "iterations": iterations,
             "duration_seconds": round(time.monotonic()-start, 3),
+            "max_temperature_c": peak,
             "limitation": "اجتاز الحساب المحدود، لا يثبت الاستقرار طويل المدى"}
 
 
@@ -128,6 +139,7 @@ def run_level(level: str, progress: Callable[[dict], None] | None = None,
         raise ValueError("unsupported diagnostic level")
     cancel = cancel or threading.Event()
     started = time.monotonic()
+    started_utc = datetime.now(timezone.utc).isoformat()
     events = {}
     tasks = [
         ("peripherals", lambda: _peripheral_inventory()),
@@ -151,12 +163,13 @@ def run_level(level: str, progress: Callable[[dict], None] | None = None,
         events[name] = value
         if progress:
             progress({"level": level, "step": name, "result": value})
-        if value.get("status") in ("stopped_heat", "cancelled"):
+        if value.get("status") in ("stopped_heat", "cancelled", "temperature_monitor_lost"):
             cancel.set()
             break
     return {
         "level": level, "status": "cancelled" if cancel.is_set() else "complete",
-        "started_at_monotonic_not_timestamp": None,
+        "started_utc": started_utc,
+        "completed_utc": datetime.now(timezone.utc).isoformat(),
         "duration_seconds": round(time.monotonic() - started, 3),
         "results": events,
         "manual_tests": [

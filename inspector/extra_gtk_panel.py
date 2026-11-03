@@ -158,6 +158,8 @@ class PhonePanel(Gtk.Box):
         self._get_report = get_report
         self._get_diagnostics = get_diagnostics
         self.bridge: PhoneBridge | None = None
+        self._starting = False
+        self._start_serial = 0
         self.pack_start(_label(
             "اتصال محلي اختياري دون إنترنت. وصّل الهاتف بنفس شبكة Wi-Fi أو فعّل نقطة الاتصال/USB tethering أولًا."), False, False, 0)
         row = Gtk.Box(spacing=8)
@@ -181,16 +183,39 @@ class PhonePanel(Gtk.Box):
         self.url = ""
 
     def start(self, *_args) -> None:
-        if self.bridge is not None:
+        if self.bridge is not None or self._starting:
             return
+        self._starting = True
+        self._start_serial += 1
+        serial = self._start_serial
         candidate = PhoneBridge()
-        try:
-            candidate.set_report(self._get_report())
-            candidate.set_diagnostics(self._get_diagnostics())
-            details = candidate.start()
-        except (OSError, RuntimeError, ValueError) as exc:
-            self.state.set_text("لم يبدأ الاتصال: " + str(exc))
-            return
+        candidate.set_report(self._get_report())
+        candidate.set_diagnostics(self._get_diagnostics())
+        self.start_button.set_sensitive(False)
+        self.state.set_text("جارٍ اكتشاف عنوان الشبكة وتهيئة USB tethering عند الحاجة…")
+        # DHCP and local certificate generation must not freeze the GTK event loop.
+        def work():
+            try:
+                details = candidate.start()
+            except (OSError, RuntimeError, ValueError) as exc:
+                GLib.idle_add(self._start_failed, serial, str(exc))
+                return
+            GLib.idle_add(self._start_ready, serial, candidate, details)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _start_failed(self, serial: int, reason: str) -> bool:
+        if serial != self._start_serial:
+            return False
+        self._starting = False
+        self.start_button.set_sensitive(True)
+        self.state.set_text("لم يبدأ الاتصال: " + reason[:500])
+        return False
+
+    def _start_ready(self, serial: int, candidate: PhoneBridge, details: dict) -> bool:
+        if serial != self._start_serial:
+            candidate.stop()
+            return False
+        self._starting = False
         self.bridge = candidate
         self.url = details["url"]
         self.state.set_text("الرابط على الهاتف:\n" + self.url)
@@ -205,14 +230,14 @@ class PhonePanel(Gtk.Box):
                     loader.close()
                     self.qr_image.set_from_pixbuf(loader.get_pixbuf())
             except (OSError, ValueError, GLib.Error, subprocess.TimeoutExpired):
-                pass  # The textual URL remains usable without QR support.
+                pass
         self.fingerprint.set_text(
             "بصمة شهادة TLS (SHA-256): " + details["certificate_sha256"] +
-            "\nلا تقبل تحذير الشهادة إلا بعد التأكد من مطابقة البصمة؛ "
-            "الشهادة مؤقتة وغير معتمدة من جهة عامة.")
+            "\nتأكد من مطابقة بصمة الشهادة قبل قبول الاتصال.")
         self.start_button.set_sensitive(False)
         self.stop_button.set_sensitive(True)
         self.copy_button.set_sensitive(True)
+        return False
 
     def refresh(self) -> None:
         if self.bridge is not None:
@@ -220,6 +245,8 @@ class PhonePanel(Gtk.Box):
             self.bridge.set_diagnostics(self._get_diagnostics())
 
     def stop(self, *_args) -> None:
+        self._start_serial += 1
+        self._starting = False
         if self.bridge is not None:
             self.bridge.stop()
             self.bridge = None

@@ -180,6 +180,50 @@ class GtkSmokeTests(unittest.TestCase):
         finally:
             win.destroy()
 
+    def test_l2_health_summary_updates_without_changing_original_smart_verdict(self):
+        win = gtk_gui.InspectorWindow()
+        try:
+            raw = {"schema_version": 1,
+                   "cpu": {"model": "i3"}, "memory": {"total_bytes": 8192},
+                   "purchase_assessment": {"verdict": "do_not_buy", "reason": "SMART failed"},
+                   "health_assessment": {"overall": "critical"}}
+            win.report = raw
+            win._update_dashboard(gtk_gui.dashboard_model(raw, complete=True))
+            win.diagnostics_panel.sessions.append({
+                "level": "L3", "status": "complete",
+                "results": {"cpu": {"status": "pass_limited", "duration_seconds": 120},
+                            "memory": {"status": "pass_limited", "tested_mib": 64}}})
+            win._on_diagnostic_complete()
+            content = win.health_view.get_buffer().get_text(
+                win.health_view.get_buffer().get_start_iter(),
+                win.health_view.get_buffer().get_end_iter(), True)
+            self.assertIn("اجتاز اختبارًا محدودًا", content)
+            self.assertIn("تقييم L1 الأساسي", content)
+            self.assertEqual(win._report_with_personal_context()["diagnostic_review"]["session_count"], 1)
+            self.assertNotIn("diagnostic_review", raw)
+            self.assertEqual(raw["purchase_assessment"]["verdict"], "do_not_buy")
+        finally:
+            win.destroy()
+
+    def test_explicit_human_component_feedback_and_escape_capture(self):
+        from types import SimpleNamespace
+        from gi.repository import Gdk
+        from inspector.interactive_gtk_tests import ComponentCheckWindow
+        captured = []
+        win = ComponentCheckWindow(captured.append)
+        try:
+            self.assertEqual(win._reviews["screen"][0].get_active_id(), "not_tested")
+            win._reviews["screen"][0].set_active_id("fail")
+            win._reviews["screen"][1].set_text("الألوان غير ظاهرة")
+            win._keypress(win, SimpleNamespace(keyval=Gdk.KEY_Escape))
+            self.assertIn(Gdk.KEY_Escape, win._keys)
+            win._finish()
+            self.assertEqual(captured[0]["user_verdicts"]["screen"]["status"], "fail")
+            self.assertIn("Escape", win.key_label.get_text())
+        finally:
+            if win.get_visible():
+                win.destroy()
+
     def test_interactive_check_window_is_non_destructive_at_start(self):
         from inspector.interactive_gtk_tests import ComponentCheckWindow
         win = ComponentCheckWindow()

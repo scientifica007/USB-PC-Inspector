@@ -338,9 +338,22 @@ def make_html(report: dict[str, Any]) -> str:
         buyer_html += '</section>'
 
     diagnostic_html = ""
+    review = report.get("diagnostic_review")
+    if isinstance(review, dict):
+        diagnostic_html += '<section><h2>خلاصة أدلة الاختبارات الإضافية</h2>'
+        diagnostic_html += '<p>' + esc(review.get("scope")) + '</p><ul class="evidence">'
+        for component in review.get("components", [])[:24]:
+            if not isinstance(component, dict):
+                continue
+            diagnostic_html += (
+                '<li><strong>' + esc(component.get("name")) + '</strong> — ' +
+                esc(component.get("label")) + '<p>' +
+                esc(component.get("evidence")) + '</p></li>'
+            )
+        diagnostic_html += '</ul></section>'
     sessions = report.get("diagnostic_sessions")
     if isinstance(sessions, list) and sessions:
-        diagnostic_html = '<section><h2>الفحوص الإضافية L2 / L3 / التفاعلية</h2>'
+        diagnostic_html += '<section><h2>الفحوص الإضافية L2 / L3 / التفاعلية</h2>'
         diagnostic_html += '<p>هذه نتائج اختبارات محدودة لا تُثبت سلامة جميع القطع؛ لا تغير حكم L1.</p>'
         for session in sessions:
             if not isinstance(session, dict):

@@ -7,6 +7,7 @@ the report schema, collector, SMART evidence and save protocol are unchanged.
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 import threading
 
@@ -20,6 +21,7 @@ from .ui_model import dashboard_model
 from .p2_gtk_panel import BuyerProfilePanel
 from .p2_presentation import make_personal_snapshot
 from .extra_gtk_panel import DiagnosticsPanel, PhonePanel
+from .diagnostic_evidence import build_diagnostic_review, diagnostic_review_text
 
 STYLESHEET = """
 window { background: #f4f6fa; color: #1d2939; font-family: "Noto Sans Arabic", "Noto Naskh Arabic", sans-serif; }
@@ -91,6 +93,9 @@ class InspectorWindow(Gtk.Window):
         self.report: dict | None = None
         self.scanning = False
         self.saving = False
+        self._health_l1_text = ""
+        self._last_saved_digest = None
+        self._pending_save_digest = None
 
         self._install_style()
         main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
@@ -271,12 +276,26 @@ class InspectorWindow(Gtk.Window):
             from copy import deepcopy
             view = deepcopy(view)
             view["diagnostic_sessions"] = deepcopy(self.diagnostics_panel.sessions)
+            view["diagnostic_review"] = build_diagnostic_review(self.report, self.diagnostics_panel.sessions)
         return view
 
     def _build_diagnostics_tab(self) -> None:
         self.diagnostics_panel = DiagnosticsPanel(
-            lambda: self.report, lambda: (self.phone_panel.refresh(), self._sync_personal_json()))
+            lambda: self.report, self._on_diagnostic_complete)
         self.stack.add_titled(self.diagnostics_panel, "diagnostics", "فحص L2 / L3")
+
+    def _on_diagnostic_complete(self) -> None:
+        self._refresh_diagnostic_health()
+        self._sync_personal_json()
+        self.phone_panel.refresh()
+
+    def _refresh_diagnostic_health(self) -> None:
+        text = self._health_l1_text
+        if self.report is not None and self.diagnostics_panel.sessions:
+            review = build_diagnostic_review(self.report, self.diagnostics_panel.sessions)
+            text = (diagnostic_review_text(review)
+                    + "\n\nتقييم L1 الأساسي (لا يتغير):\n" + text)
+        self.health_view.get_buffer().set_text(rtl_paragraphs(text))
 
     def _build_phone_tab(self) -> None:
         self.phone_panel = PhonePanel(self._report_with_personal_context,
@@ -361,7 +380,8 @@ class InspectorWindow(Gtk.Window):
         self.timing_label.set_text("زمن الفحص: " + model["timing"])
         self.scope_label.set_text(model["scope"])
         self.hardware_view.get_buffer().set_text(rtl_paragraphs(model.get("extended_hardware", "")))
-        self.health_view.get_buffer().set_text(rtl_paragraphs(model.get("health_panel", "")))
+        self._health_l1_text = model.get("health_panel", "")
+        self._refresh_diagnostic_health()
         self.suitability_view.get_buffer().set_text(rtl_paragraphs(model.get("suitability_panel", "")))
 
     def _emit(self, kind: str, payload: object) -> None:
@@ -373,6 +393,7 @@ class InspectorWindow(Gtk.Window):
         self.scanning = True
         self.report = None
         self.diagnostics_panel.sessions.clear()
+        self._last_saved_digest = None
         self.profile_panel.set_report(None)
         self.phone_panel.refresh()
         self.scan_button.set_sensitive(False)
@@ -414,6 +435,8 @@ class InspectorWindow(Gtk.Window):
             self._sync_personal_json()
             self.phone_panel.refresh()
         elif kind == "saved":
+            self._last_saved_digest = self._pending_save_digest
+            self._pending_save_digest = None
             self.saving = False
             self.scan_button.set_sensitive(True)
             self.save_button.set_sensitive(True)
@@ -427,6 +450,7 @@ class InspectorWindow(Gtk.Window):
                 Gtk.MessageType.INFO,
             )
         elif kind == "save_error":
+            self._pending_save_digest = None
             self.saving = False
             self.scan_button.set_sensitive(True)
             self.save_button.set_sensitive(self.report is not None)
@@ -457,6 +481,20 @@ class InspectorWindow(Gtk.Window):
         if self.report is None or self.scanning or self.saving:
             return
         report = self._report_with_personal_context()
+        digest = hashlib.sha256(json.dumps(
+            report, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+        if digest == self._last_saved_digest:
+            dialog = Gtk.MessageDialog(
+                transient_for=self, flags=Gtk.DialogFlags.MODAL,
+                message_type=Gtk.MessageType.QUESTION, buttons=Gtk.ButtonsType.YES_NO,
+                text="لم تتغير بيانات التقرير منذ آخر حفظ")
+            dialog.format_secondary_text("هل تريد إنشاء نسخة إضافية مطابقة على USB؟")
+            accepted = dialog.run() == Gtk.ResponseType.YES
+            dialog.destroy()
+            if not accepted:
+                self.status.set_text("التقرير محفوظ سابقًا؛ لم تُنشأ نسخة مكررة.")
+                return
+        self._pending_save_digest = digest
         self.phone_panel.refresh()
         self.saving = True
         self.save_button.set_sensitive(False)

@@ -42,6 +42,13 @@ class Tests(unittest.TestCase):
         self.assertEqual(result["status"], "unavailable")
         self.assertIn("الحرارة", result["reason"])
 
+    def test_thermal_peak_recorded_and_test_has_wall_clock_timestamps(self):
+        with patch.object(diag, "_temperature", return_value={"max_c": 43.0, "status": "observed"}):
+            result = diag.run_level("L2", cpu_seconds=0.06)
+        self.assertIsNotNone(result["started_utc"])
+        self.assertIsNotNone(result["completed_utc"])
+        self.assertEqual(result["results"]["cpu"]["max_temperature_c"], 43.0)
+
     def test_thermal_cutoff_stops_workload(self):
         with patch.object(diag, "_temperature", return_value={"max_c": 91.0}):
             result = diag._cpu(threading.Event(), seconds=3.0)

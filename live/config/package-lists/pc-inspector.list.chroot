@@ -30,3 +30,4 @@ gstreamer1.0-plugins-good
 qrencode
 network-manager
 gstreamer1.0-x
+x11-xkb-utils

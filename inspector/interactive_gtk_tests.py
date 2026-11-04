@@ -13,7 +13,9 @@ import struct
 import subprocess
 import threading
 
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
+
+from .keyboard_layouts import LAYOUTS, apply_test_layout, restore_x11_layout
 
 
 PALETTE = (
@@ -33,6 +35,10 @@ class ComponentCheckWindow(Gtk.Window):
         self._on_result = on_result
         self._color_index = 0
         self._keys: set[int] = set()
+        self._physical_keys: set[int] = set()
+        self._keys_by_layout: dict[str, set[int]] = {ident: set() for ident in LAYOUTS}
+        self._original_xkb: dict[str, str] | None = None
+        self._applied_layout: str | None = None
         self._pointer_moves = 0
         self._pointer_clicks = 0
         self._audio_ok = False
@@ -40,6 +46,7 @@ class ComponentCheckWindow(Gtk.Window):
         self._camera = None
         self._fullscreen = None
         self._fullscreen_area = None
+        self._fullscreen_size = None
         self._reviews = {}
         self._audio_busy = False
         self.connect("destroy", self._clean_up)
@@ -50,13 +57,12 @@ class ComponentCheckWindow(Gtk.Window):
         self.notebook = Gtk.Notebook()
         root.pack_start(self.notebook, True, True, 0)
 
-        # A true full-size solid panel: user visually observes pixels/brightness.
+        # Use actual image pixels: Cairo DrawingArea remained gray on HP 630.
         screen = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        self.color_area = Gtk.DrawingArea()
+        self.color_area = Gtk.Image()
         self.color_area.set_size_request(500, 280)
         self.color_area.set_hexpand(True)
         self.color_area.set_vexpand(True)
-        self.color_area.connect("draw", self._draw_color)
         screen.pack_start(self.color_area, True, True, 0)
         self.color_label = Gtk.Label()
         screen.pack_start(self.color_label, False, False, 0)
@@ -70,7 +76,28 @@ class ComponentCheckWindow(Gtk.Window):
         self.notebook.append_page(screen, Gtk.Label(label="الشاشة"))
         self._update_color()
 
-        keys = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        keys = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        choose = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        choose.pack_start(Gtk.Label(label="تخطيط لوحة المفاتيح:"), False, False, 0)
+        self.layout_selector = Gtk.ComboBoxText()
+        for ident, spec in LAYOUTS.items():
+            self.layout_selector.append(ident, spec[0])
+        self.layout_selector.set_active_id("us")
+        self.layout_selector.connect("changed", self._layout_changed)
+        choose.pack_start(self.layout_selector, True, True, 0)
+        keys.pack_start(choose, False, False, 0)
+        self.layout_reference = Gtk.Label()
+        self.layout_reference.set_line_wrap(True)
+        self.layout_reference.set_justify(Gtk.Justification.CENTER)
+        keys.pack_start(self.layout_reference, False, False, 0)
+        apply_layout = Gtk.Button(label="تطبيق التخطيط المختار مؤقتًا على جلسة Live")
+        apply_layout.connect("clicked", self._apply_layout)
+        keys.pack_start(apply_layout, False, False, 0)
+        self.layout_status = Gtk.Label(
+            label="الاختيار للعرض فقط؛ لا يتغير تخطيط الكتابة إلا بالضغط على تطبيق.")
+        self.layout_status.set_line_wrap(True)
+        keys.pack_start(self.layout_status, False, False, 0)
+        self._layout_changed()
         self.key_label = Gtk.Label(label="اضغط مفاتيح مختلفة داخل هذه النافذة ثم قيّمها بنفسك.")
         keys.pack_start(self.key_label, False, False, 0)
         keys.set_can_focus(True)
@@ -161,17 +188,20 @@ class ComponentCheckWindow(Gtk.Window):
         win = Gtk.Window(title="فحص ألوان الشاشة — Escape للإغلاق")
         win.set_transient_for(self)
         win.set_direction(Gtk.TextDirection.RTL)
-        area = Gtk.DrawingArea()
-        area.set_size_request(500, 280)
-        area.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
-        area.connect("draw", self._draw_color)
-        area.connect("button-press-event", self._fullscreen_click)
+        area = Gtk.Image()
+        area.set_hexpand(True)
+        area.set_vexpand(True)
         win.add(area)
+        win.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        win.connect("button-press-event", self._fullscreen_click)
         win.connect("key-press-event", self._fullscreen_key)
+        win.connect("size-allocate", self._fullscreen_allocated)
         win.connect("destroy", self._fullscreen_closed)
         self._fullscreen, self._fullscreen_area = win, area
+        self._fullscreen_size = None
         win.show_all()
         win.fullscreen()
+        self._update_color()
 
     def _fullscreen_click(self, *_args):
         self._next_color()
@@ -189,30 +219,82 @@ class ComponentCheckWindow(Gtk.Window):
     def _fullscreen_closed(self, *_args):
         self._fullscreen = None
         self._fullscreen_area = None
+        self._fullscreen_size = None
 
-    def _draw_color(self, _area, cr) -> bool:
-        r, g, b = PALETTE[self._color_index][1]
-        cr.set_source_rgb(r, g, b)
-        cr.paint()
-        return True
+    @staticmethod
+    def _solid_pixbuf(rgb: tuple[float, float, float],
+                      width: int, height: int) -> GdkPixbuf.Pixbuf:
+        width = max(1, min(int(width), 4096))
+        height = max(1, min(int(height), 2160))
+        pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8,
+                                      width, height)
+        channels = [round(max(0, min(1, x)) * 255) for x in rgb]
+        pixbuf.fill((channels[0] << 24) | (channels[1] << 16)
+                    | (channels[2] << 8) | 0xFF)
+        return pixbuf
+
+    def _fullscreen_allocated(self, _widget, allocation) -> None:
+        current = (allocation.width, allocation.height)
+        if current != self._fullscreen_size and self._fullscreen_area is not None:
+            self._fullscreen_size = current
+            self._render_fullscreen_color()
+
+    def _render_fullscreen_color(self) -> None:
+        if self._fullscreen_area is None:
+            return
+        width, height = self._fullscreen_size or (800, 500)
+        self._fullscreen_area.set_from_pixbuf(
+            self._solid_pixbuf(PALETTE[self._color_index][1], width, height))
 
     def _update_color(self) -> None:
         self.color_label.set_text(
             PALETTE[self._color_index][0] + " — تحقق بصريًا من عدم وجود بقع أو خطوط أو بكسلات عالقة.")
-        self.color_area.queue_draw()
-        if self._fullscreen_area is not None:
-            self._fullscreen_area.queue_draw()
+        self.color_area.set_from_pixbuf(
+            self._solid_pixbuf(PALETTE[self._color_index][1], 500, 280))
+        self._render_fullscreen_color()
+
+    def _layout_changed(self, *_args) -> None:
+        ident = self.layout_selector.get_active_id() or "us"
+        self.layout_reference.set_text(
+            "مرجع الصفوف (مواضع المفاتيح):\n" + LAYOUTS[ident][3]
+            + "\nلا يمثّل المرجع اختبارًا آليًا لسلامة كل مفتاح.")
+
+    def _apply_layout(self, *_args) -> None:
+        ident = self.layout_selector.get_active_id() or "us"
+        try:
+            self._original_xkb = apply_test_layout(ident, self._original_xkb)
+        except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired) as exc:
+            self.layout_status.set_text("تعذر تغيير تخطيط جلسة X11: " + str(exc)[:190])
+            return
+        self._applied_layout = ident
+        self.layout_status.set_text(
+            "تم تطبيق " + LAYOUTS[ident][0] +
+            " مؤقتًا. سيُسترجع تخطيط X11 الأصلي عند إغلاق نافذة الاختبار.")
+        self.keys_area.grab_focus()
 
     def _next_color(self, *_args) -> None:
         self._color_index = (self._color_index + 1) % len(PALETTE)
         self._update_color()
 
     def _keypress(self, _widget, event) -> bool:
-        self._keys.add(int(event.keyval))
-        name = Gdk.keyval_name(event.keyval) or str(event.keyval)
-        self.key_label.set_text("عدد رموز المفاتيح المختلفة المستقبلة: "
-                                + str(len(self._keys)) + " — الأخير: " + name
-                                + "\nقد يعترض مدير النوافذ بعض مفاتيح F؛ قيّمها يدويًا.")
+        # Events on other pages (e.g. typing notes) are not keyboard tests.
+        if self.notebook.get_current_page() != 1:
+            return False
+        value = int(event.keyval)
+        self._keys.add(value)
+        physical = getattr(event, "hardware_keycode", None)
+        if physical is not None:
+            self._physical_keys.add(int(physical))
+        ident = self.layout_selector.get_active_id() or "us"
+        self._keys_by_layout[ident].add(int(physical) if physical is not None else value)
+        name = Gdk.keyval_name(value) or str(value)
+        name = {"Return": "Enter / Return", "Print": "Impr écran / Print Screen",
+                "Escape": "Échap / Escape"}.get(name, name)
+        self.key_label.set_text(
+            "مفاتيح فيزيائية/رموز مختلفة: " + str(len(self._keys_by_layout[ident]))
+            + " — الأخير: " + name
+            + (" (رمز فيزيائي: " + str(physical) + ")" if physical is not None else "")
+            + "\nبعض مفاتيح F قد يعترضها مدير النوافذ؛ لا تعتبرها معطلة تلقائيًا.")
         return False
 
     def _motion(self, *_args) -> bool:
@@ -343,7 +425,13 @@ class ComponentCheckWindow(Gtk.Window):
                     "screen": {"status": "user_review_required",
                                "colours_available": [name for name, _ in PALETTE]},
                     "keyboard": {"status": "events_observed" if self._keys else "not_tested",
-                                 "distinct_key_codes": len(self._keys)},
+                                 "distinct_key_codes": len(self._keys),
+                                 "distinct_physical_key_codes": len(self._physical_keys),
+                                 "reference_layout": self.layout_selector.get_active_id(),
+                                 "applied_xkb_layout": self._applied_layout,
+                                 "physical_codes_by_layout": {
+                                     key: sorted(values)[:128]
+                                     for key, values in self._keys_by_layout.items()}},
                     "pointer": {"status": "events_observed" if self._pointer_moves or self._pointer_clicks else "not_tested",
                                 "moves": self._pointer_moves, "clicks": self._pointer_clicks},
                     "speaker": {"status": "output_attempted" if self._audio_ok else "not_tested"},
@@ -357,6 +445,13 @@ class ComponentCheckWindow(Gtk.Window):
     def _clean_up(self, *_args):
         if self._fullscreen is not None:
             self._fullscreen.destroy()
+        if self._original_xkb is not None:
+            try:
+                restore_x11_layout(self._original_xkb)
+            except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
+                # Best effort if the X server has gone away; no system files.
+                pass
+            self._original_xkb = None
         if self._camera is not None and self._camera.poll() is None:
             self._camera.terminate()
             try:

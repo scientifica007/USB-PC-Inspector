@@ -215,6 +215,9 @@ class GtkSmokeTests(unittest.TestCase):
             self.assertEqual(win._reviews["screen"][0].get_active_id(), "not_tested")
             win._reviews["screen"][0].set_active_id("fail")
             win._reviews["screen"][1].set_text("الألوان غير ظاهرة")
+            win.show_all()
+            win.notebook.set_current_page(1)
+            self.assertEqual(win.notebook.get_current_page(), 1)
             win._keypress(win, SimpleNamespace(keyval=Gdk.KEY_Escape))
             self.assertIn(Gdk.KEY_Escape, win._keys)
             win._finish()
@@ -223,6 +226,94 @@ class GtkSmokeTests(unittest.TestCase):
         finally:
             if win.get_visible():
                 win.destroy()
+
+    def test_stack_height_is_independent_after_l2_and_scrollable(self):
+        # The real UI starts L1 via a 350ms timer. Disable it for this
+        # deterministic GTK layout test: it would clear the test buffer.
+        with patch.object(gtk_gui.GLib, "timeout_add", return_value=0):
+            win = gtk_gui.InspectorWindow()
+        try:
+            win.stack.set_transition_type(Gtk.StackTransitionType.NONE)
+            self.assertFalse(win.stack.get_vhomogeneous())
+            for name in ("overview", "hardware", "health", "workloads",
+                         "buyer", "json", "about"):
+                scroller = win.stack.get_child_by_name(name)
+                self.assertIsInstance(scroller, Gtk.ScrolledWindow)
+                self.assertFalse(scroller.get_propagate_natural_height())
+            raw = {"schema_version": 1,
+                   "purchase_assessment": {"verdict": "do_not_buy"},
+                   "health_assessment": {"overall": "critical"}}
+            win.report = raw
+            win._update_dashboard(gtk_gui.dashboard_model(raw, complete=True))
+            win.diagnostics_panel.sessions.append(
+                {"level": "L2", "results": {"cpu": {"status": "pass_limited"}}})
+            win._on_diagnostic_complete()
+            win.hardware_view.get_buffer().set_text("سطر\n" * 800)
+            win.hardware_view.queue_resize()
+            win.show_all()
+            win.resize(950, 650)
+            for name in ("health", "hardware", "workloads", "hardware"):
+                win.stack.set_visible_child_name(name)
+                for _ in range(45):
+                    if Gtk.events_pending():
+                        Gtk.main_iteration_do(False)
+            scroller = win.stack.get_child_by_name("hardware")
+            scroller.queue_resize()
+            win.hardware_view.queue_resize()
+            for _ in range(150):
+                if Gtk.events_pending():
+                    Gtk.main_iteration_do(False)
+            adj = scroller.get_vadjustment()
+            self.assertGreater(adj.get_upper(), adj.get_page_size())
+            adj.set_value(adj.get_upper() - adj.get_page_size())
+            for _ in range(45):
+                if Gtk.events_pending():
+                    Gtk.main_iteration_do(False)
+            self.assertAlmostEqual(adj.get_value(),
+                                   adj.get_upper() - adj.get_page_size(),
+                                   delta=2.0)
+        finally:
+            win.destroy()
+
+    def test_color_pixbuf_channels_follow_palette(self):
+        from inspector.interactive_gtk_tests import ComponentCheckWindow
+        win = ComponentCheckWindow()
+        try:
+            for idx, rgb in enumerate(((255, 0, 0), (0, 255, 0),
+                                       (0, 0, 255), (255, 255, 255),
+                                       (0, 0, 0))):
+                win._color_index = idx
+                win._update_color()
+                pixels = win.color_area.get_pixbuf().get_pixels()
+                self.assertEqual(tuple(pixels[:3]), rgb)
+        finally:
+            win.destroy()
+
+    def test_keyboard_reference_only_is_non_destructive(self):
+        from inspector.interactive_gtk_tests import ComponentCheckWindow
+        win = ComponentCheckWindow()
+        try:
+            with patch("inspector.interactive_gtk_tests.apply_test_layout") as apply:
+                for ident in ("us", "fr", "dz_ar"):
+                    win.layout_selector.set_active_id(ident)
+                    self.assertEqual(win.layout_selector.get_active_id(), ident)
+                apply.assert_not_called()
+                self.assertIn("dz(ar)", win.layout_reference.get_text())
+        finally:
+            win.destroy()
+
+    def test_keyboard_apply_is_opt_in_and_restores_on_close(self):
+        from inspector.interactive_gtk_tests import ComponentCheckWindow
+        win = ComponentCheckWindow()
+        before = {"layout": "us", "model": "pc105"}
+        with patch("inspector.interactive_gtk_tests.apply_test_layout",
+                   return_value=before) as apply, patch(
+                   "inspector.interactive_gtk_tests.restore_x11_layout") as restore:
+            win.layout_selector.set_active_id("dz_ar")
+            win._apply_layout()
+            apply.assert_called_once_with("dz_ar", None)
+            win.destroy()
+            restore.assert_called_once_with(before)
 
     def test_interactive_check_window_is_non_destructive_at_start(self):
         from inspector.interactive_gtk_tests import ComponentCheckWindow

@@ -1,3 +1,5 @@
+**Latest development candidate 0.2.2-beta.1 (hardware validation pending):** fix GTK sidebar scrolling after L2, replace gray Cairo color test with pixel-backed RGB image, add QWERTY US / AZERTY FR / Arabic Algeria dz(ar) keyboard test presets and optional reversible X11 session keymap switching. L1 SMART and L2/L3/phone untouched. [Changes and acceptance](docs/IMPLEMENTATION_022_GTK_KEYBOARD_2026-11-04.md).
+
 # USB-PC-Inspector — مختبر فحص الحواسيب
 
 **Latest development candidate 0.2.1-beta.1 (not field-validated):** Field repairs on 03/11/2026: conservative derived L2/L3 health, human verdicts, fullscreen screen colours, keyboard, adjustable digital audio, camera errors/X11 sink, USB tether DHCP via NetworkManager, CPU thermal peak, UTC session timestamps and duplicate-save warning. Original L1/SMART verdict unchanged. See [scope and field acceptance](docs/IMPLEMENTATION_021_FIELD_FIXES_2026-11-03.md).

@@ -215,7 +215,9 @@ class GtkSmokeTests(unittest.TestCase):
             self.assertEqual(win._reviews["screen"][0].get_active_id(), "not_tested")
             win._reviews["screen"][0].set_active_id("fail")
             win._reviews["screen"][1].set_text("الألوان غير ظاهرة")
+            win.show_all()
             win.notebook.set_current_page(1)
+            self.assertEqual(win.notebook.get_current_page(), 1)
             win._keypress(win, SimpleNamespace(keyval=Gdk.KEY_Escape))
             self.assertIn(Gdk.KEY_Escape, win._keys)
             win._finish()
@@ -226,8 +228,12 @@ class GtkSmokeTests(unittest.TestCase):
                 win.destroy()
 
     def test_stack_height_is_independent_after_l2_and_scrollable(self):
-        win = gtk_gui.InspectorWindow()
+        # The real UI starts L1 via a 350ms timer. Disable it for this
+        # deterministic GTK layout test: it would clear the test buffer.
+        with patch.object(gtk_gui.GLib, "timeout_add", return_value=0):
+            win = gtk_gui.InspectorWindow()
         try:
+            win.stack.set_transition_type(Gtk.StackTransitionType.NONE)
             self.assertFalse(win.stack.get_vhomogeneous())
             for name in ("overview", "hardware", "health", "workloads",
                          "buyer", "json", "about"):
@@ -243,6 +249,7 @@ class GtkSmokeTests(unittest.TestCase):
                 {"level": "L2", "results": {"cpu": {"status": "pass_limited"}}})
             win._on_diagnostic_complete()
             win.hardware_view.get_buffer().set_text("سطر\n" * 800)
+            win.hardware_view.queue_resize()
             win.show_all()
             win.resize(950, 650)
             for name in ("health", "hardware", "workloads", "hardware"):
@@ -251,6 +258,11 @@ class GtkSmokeTests(unittest.TestCase):
                     if Gtk.events_pending():
                         Gtk.main_iteration_do(False)
             scroller = win.stack.get_child_by_name("hardware")
+            scroller.queue_resize()
+            win.hardware_view.queue_resize()
+            for _ in range(150):
+                if Gtk.events_pending():
+                    Gtk.main_iteration_do(False)
             adj = scroller.get_vadjustment()
             self.assertGreater(adj.get_upper(), adj.get_page_size())
             adj.set_value(adj.get_upper() - adj.get_page_size())

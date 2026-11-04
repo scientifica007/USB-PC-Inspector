@@ -131,8 +131,13 @@ class InspectorWindow(Gtk.Window):
         main.pack_start(self.status, False, False, 0)
 
         self.stack = Gtk.Stack()
+        # L2/L3 can lengthen health. The non-visible page must not force
+        # the window taller and clip the final lines of other scroll tabs.
+        self.stack.set_vhomogeneous(False)
+        self.stack.set_vexpand(True)
         self.stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
         self.stack.set_transition_duration(120)
+        self.stack.set_interpolate_size(False)
         # A permanent RTL sidebar scales to 9+ tabs and avoids forcing
         # the window wider than smaller laptop screens.
         body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -168,6 +173,8 @@ class InspectorWindow(Gtk.Window):
 
     def _build_overview(self) -> None:
         scroller = Gtk.ScrolledWindow()
+        scroller.set_propagate_natural_height(False)
+        scroller.set_vexpand(True)
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
         outer.set_border_width(6)
@@ -217,6 +224,8 @@ class InspectorWindow(Gtk.Window):
 
     def _build_hardware_tab(self) -> None:
         scroller = Gtk.ScrolledWindow()
+        scroller.set_propagate_natural_height(False)
+        scroller.set_vexpand(True)
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         view = Gtk.TextView()
         view.set_editable(False)
@@ -241,6 +250,8 @@ class InspectorWindow(Gtk.Window):
                 ("health", "صحة المكونات", "health_view"),
                 ("workloads", "فيم يصلح؟", "suitability_view")):
             scroller = Gtk.ScrolledWindow()
+        scroller.set_propagate_natural_height(False)
+        scroller.set_vexpand(True)
             scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
             view = Gtk.TextView()
             view.set_editable(False)
@@ -259,6 +270,8 @@ class InspectorWindow(Gtk.Window):
 
     def _build_profile_tab(self) -> None:
         scroller = Gtk.ScrolledWindow()
+        scroller.set_propagate_natural_height(False)
+        scroller.set_vexpand(True)
         # Set the container direction too: child RTL alone is not sufficient.
         scroller.set_direction(Gtk.TextDirection.RTL)
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -317,6 +330,8 @@ class InspectorWindow(Gtk.Window):
 
     def _build_json_tab(self) -> None:
         scroller = Gtk.ScrolledWindow()
+        scroller.set_propagate_natural_height(False)
+        scroller.set_vexpand(True)
         scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         view = Gtk.TextView()
         view.set_editable(False)
@@ -335,6 +350,8 @@ class InspectorWindow(Gtk.Window):
 
     def _build_about_tab(self) -> None:
         scroller = Gtk.ScrolledWindow()
+        scroller.set_propagate_natural_height(False)
+        scroller.set_vexpand(True)
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
         box.get_style_context().add_class("about")

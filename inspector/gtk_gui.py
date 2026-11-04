@@ -250,8 +250,8 @@ class InspectorWindow(Gtk.Window):
                 ("health", "صحة المكونات", "health_view"),
                 ("workloads", "فيم يصلح؟", "suitability_view")):
             scroller = Gtk.ScrolledWindow()
-        scroller.set_propagate_natural_height(False)
-        scroller.set_vexpand(True)
+            scroller.set_propagate_natural_height(False)
+            scroller.set_vexpand(True)
             scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
             view = Gtk.TextView()
             view.set_editable(False)
